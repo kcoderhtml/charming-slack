@@ -52,10 +52,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 // FullHelp returns keybindings for the expanded help view. It's part of the
 // key.Map interface.
 func (k keyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.Up, k.Down, k.Left, k.Right}, // first column
-		{k.Tab, k.Help, k.Quit},         // second column
-	}
+	return [][]key.Binding{{k.Tab}, {k.Help}, {k.Quit}}
 }
 
 var keys = keyMap{
@@ -188,13 +185,12 @@ func myCustomBubbleteaMiddleware() wish.Middleware {
 			return nil
 		}
 		m := model{
-			term:       pty.Term,
-			width:      pty.Window.Width,
-			height:     pty.Window.Height,
-			time:       time.Now(),
-			keys:       keys,
-			help:       help.New(),
-			helpHeight: 2,
+			term:   pty.Term,
+			width:  pty.Window.Width,
+			height: pty.Window.Height,
+			time:   time.Now(),
+			keys:   keys,
+			help:   help.New(),
 		}
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
 	}
@@ -210,7 +206,6 @@ type model struct {
 	focusedPane int
 	keys        keyMap
 	help        help.Model
-	helpHeight  int
 }
 
 type timeMsg time.Time
@@ -231,11 +226,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
-			if m.help.ShowAll {
-				m.helpHeight = 4
-			} else {
-				m.helpHeight = 2
-			}
 		case key.Matches(msg, m.keys.Tab):
 			m.focusedPane = (m.focusedPane + 1) % 2
 		case key.Matches(msg, m.keys.Quit):
@@ -251,7 +241,7 @@ func (m model) View() string {
 
 	for _, group := range groups {
 		// break if the list is longer than the line count of the terminal
-		if len(groupsList) > m.height-9-m.helpHeight {
+		if len(groupsList) > m.height-7 {
 			groupsList = append(groupsList, "...")
 			break
 		}
