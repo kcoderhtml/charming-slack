@@ -40,8 +40,11 @@ var style = lipgloss.NewStyle().
 	Border(lipgloss.RoundedBorder())
 
 var slackApi *slack.Client
+var slackUserApi *slack.Client
 
 var groups []slack.Channel
+
+var messages []slack.Message
 
 func main() {
 	err := godotenv.Load()
@@ -49,9 +52,11 @@ func main() {
 		log.Error("Error loading .env file", "error", err)
 	}
 
-	log.Info(os.Getenv("SLACK_TOKEN"))
-	api := slack.New(os.Getenv("SLACK_TOKEN"))
-	slackApi = api
+	botApi := slack.New(os.Getenv("SLACK_TOKEN"))
+	userApi := slack.New(os.Getenv("SLACK_OAUTH_TOKEN"))
+	slackApi = botApi
+	slackUserApi = userApi
+
 	// get a slack client from .env
 	// Retrieve user groups
 	ListOfGroups, _, err := slackApi.GetConversationsForUser(&slack.GetConversationsForUserParameters{UserID: "U062UG485EE"})
@@ -62,6 +67,17 @@ func main() {
 
 	// Assign retrieved user groups to the global variable
 	groups = ListOfGroups
+
+	// Retrieve messages from the first group
+	ListOfMessages, err := slackUserApi.GetConversationHistory(&slack.GetConversationHistoryParameters{ChannelID: groups[0].ID})
+
+	if err != nil {
+		log.Error("Failed to retrieve messages", "error", err)
+		return
+	}
+
+	// Assign retrieved messages to the global variable
+	messages = ListOfMessages.Messages
 
 	s, err := wish.NewServer(
 		wish.WithAddress(net.JoinHostPort(host, port)),
@@ -126,15 +142,17 @@ func myCustomBubbleteaMiddleware() wish.Middleware {
 
 // Just a generic tea.Model to demo terminal information of ssh.
 type model struct {
-	term   string
-	width  int
-	height int
-	time   time.Time
+	term        string
+	width       int
+	height      int
+	time        time.Time
+	focusedPane int
 }
 
 type timeMsg time.Time
 
 func (m model) Init() tea.Cmd {
+	// set the dummy content to be the conversation history of the first group
 	return nil
 }
 
@@ -146,12 +164,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.width = msg.Width
 
-		style.Width(m.width - 2)
+		style.Width(m.width/2 - 2)
 		style.Height(m.height - 2)
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "tab":
+			m.focusedPane = (m.focusedPane + 1) % 2
 		}
 	}
 	return m, nil
@@ -171,5 +191,9 @@ func (m model) View() string {
 		groupsList = append(groupsList, group.Name)
 	}
 
-	return style.Render(strings.Join(groupsList, "\n"))
+	// Render the list of groups
+	channels := style.Bold(m.focusedPane == 0).Render(strings.Join(groupsList, "\n"))
+	conversations := style.Bold(m.focusedPane == 1).Render(messages[0].Text)
+
+	return lipgloss.JoinHorizontal(lipgloss.Left, channels, conversations)
 }
