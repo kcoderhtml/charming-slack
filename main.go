@@ -6,10 +6,10 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -35,8 +35,9 @@ var style = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(lipgloss.Color("#FAFAFA")).
 	Background(lipgloss.Color("#7D56F4")).
-	PaddingTop(2).
-	PaddingLeft(4)
+	Padding(1).
+	PaddingLeft(2).
+	Border(lipgloss.RoundedBorder())
 
 var slackApi *slack.Client
 
@@ -145,8 +146,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.width = msg.Width
 
-		style.Width(m.width)
-		style.Height(m.height)
+		style.Width(m.width - 2)
+		style.Height(m.height - 2)
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
@@ -157,12 +158,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	// make a list of groups
-	groups_list := ""
+	// Make a list of groups
+	var groupsList []string
 
 	for _, group := range groups {
-		groups_list += fmt.Sprintf("ID: %s, Name: %s\n", group.ID, group.Name)
+		// break if the list is longer than the line count of the terminal
+		if len(groupsList) > m.height-6 {
+			groupsList = append(groupsList, "...")
+			break
+		}
+
+		groupsList = append(groupsList, group.Name)
 	}
 
-	return style.Render(groups_list)
+	return style.Render(strings.Join(groupsList, "\n"))
 }
