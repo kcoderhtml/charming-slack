@@ -6,10 +6,10 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -39,6 +39,7 @@ type keyMap struct {
 	Left  key.Binding
 	Right key.Binding
 	Tab   key.Binding
+	Enter key.Binding
 	Help  key.Binding
 	Quit  key.Binding
 }
@@ -75,6 +76,10 @@ var keys = keyMap{
 	Tab: key.NewBinding(
 		key.WithKeys("tab"),
 		key.WithHelp("tab", "focus next pane"),
+	),
+	Enter: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "submit"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
@@ -185,12 +190,15 @@ func myCustomBubbleteaMiddleware() wish.Middleware {
 			return nil
 		}
 		m := model{
-			term:   pty.Term,
-			width:  pty.Window.Width,
-			height: pty.Window.Height,
-			time:   time.Now(),
-			keys:   keys,
-			help:   help.New(),
+			term:                 pty.Term,
+			width:                pty.Window.Width,
+			height:               pty.Window.Height,
+			time:                 time.Now(),
+			keys:                 keys,
+			help:                 help.New(),
+			selectedChannelIndex: 0,
+			messages:             messages,
+			messageIndex:         0,
 		}
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
 	}
@@ -199,13 +207,16 @@ func myCustomBubbleteaMiddleware() wish.Middleware {
 
 // Just a generic tea.Model to demo terminal information of ssh.
 type model struct {
-	term        string
-	width       int
-	height      int
-	time        time.Time
-	focusedPane int
-	keys        keyMap
-	help        help.Model
+	term                 string
+	width                int
+	height               int
+	time                 time.Time
+	focusedPane          int
+	keys                 keyMap
+	help                 help.Model
+	selectedChannelIndex int
+	messages             []slack.Message
+	messageIndex         int
 }
 
 type timeMsg time.Time
@@ -224,6 +235,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 	case tea.KeyMsg:
 		switch {
+		case key.Matches(msg, m.keys.Up):
+			if m.selectedChannelIndex > 0 {
+				m.selectedChannelIndex--
+			}
+		case key.Matches(msg, m.keys.Down):
+			if m.selectedChannelIndex < m.height-8 {
+				m.selectedChannelIndex++
+			}
+		case key.Matches(msg, m.keys.Left):
+			if m.messageIndex > 0 {
+				m.messageIndex--
+			}
+		case key.Matches(msg, m.keys.Right):
+			if m.messageIndex < len(m.messages)-1 {
+				m.messageIndex++
+			}
+		case key.Matches(msg, m.keys.Enter):
+			// Retrieve messages from the selected group
+			ListOfMessages, err := slackUserApi.GetConversationHistory(&slack.GetConversationHistoryParameters{ChannelID: groups[m.selectedChannelIndex].ID})
+
+			if err != nil {
+				log.Error("Failed to retrieve messages", "error", err)
+				return m, nil
+			}
+
+			// Assign retrieved messages to the global variable
+			m.messages = ListOfMessages.Messages
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
 		case key.Matches(msg, m.keys.Tab):
@@ -241,7 +279,7 @@ func (m model) View() string {
 
 	for _, group := range groups {
 		// break if the list is longer than the line count of the terminal
-		if len(groupsList) > m.height-7 {
+		if len(groupsList) > m.height-8 {
 			groupsList = append(groupsList, "...")
 			break
 		}
@@ -249,9 +287,31 @@ func (m model) View() string {
 		groupsList = append(groupsList, group.Name)
 	}
 
+	// clamp the selected channel index
+	if m.selectedChannelIndex < 0 {
+		m.selectedChannelIndex = 0
+	} else if m.selectedChannelIndex >= len(groupsList) {
+		m.selectedChannelIndex = len(groupsList) - 1
+	}
+
 	// Render the list of groups
-	channels := style.Copy().Bold(m.focusedPane == 0).Width(20).Render(strings.Join(groupsList, "\n"))
-	conversations := style.Copy().Bold(m.focusedPane == 1).Width(m.width - 26).Render(messages[0].Text)
+	channels := style.Copy().Render(func() string {
+		output := ""
+		for i, group := range groupsList {
+			if i == m.selectedChannelIndex {
+				output += "> " + group + "\n"
+			} else {
+				output += "  " + group + "\n"
+			}
+		}
+		return output
+	}())
+
+	conversations := style.Copy().Bold(m.focusedPane == 1).Width(m.width - 26).
+		Render(m.messages[m.messageIndex].Text +
+			"\nMessage: " + fmt.Sprint(m.messageIndex) +
+			" of " + fmt.Sprint(len(m.messages)))
+
 	helpView := m.help.View(m.keys)
 
 	return lipgloss.JoinVertical(lipgloss.Top, lipgloss.JoinHorizontal(lipgloss.Left, channels, conversations), helpView)
