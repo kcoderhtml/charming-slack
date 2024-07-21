@@ -183,8 +183,8 @@ func slackInstallHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	users[state] = userData{
-		SlackToken:   token.AccessToken,
-		RefreshToken: token.RefreshToken,
+		SlackToken:   token.AuthedUser.AccessToken,
+		RefreshToken: token.AuthedUser.RefreshToken,
 		RealName:     identity.RealName,
 	}
 
