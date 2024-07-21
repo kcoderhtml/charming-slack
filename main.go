@@ -5,7 +5,7 @@ package main
 
 import (
 	"context"
-	"errors"
+	"errors" // Add this line to import the fmt package
 	"net"
 	"os"
 	"os/signal"
@@ -82,6 +82,9 @@ func main() {
 	s, err := wish.NewServer(
 		wish.WithAddress(net.JoinHostPort(host, port)),
 		wish.WithHostKeyPath(".ssh/id_ed25519"),
+		wish.WithPublicKeyAuth(func(_ ssh.Context, key ssh.PublicKey) bool {
+			return true
+		}),
 		wish.WithMiddleware(
 			firstLineDefenseMiddleware(),
 			logging.Middleware(),
@@ -129,13 +132,39 @@ func firstLineDefenseMiddleware() wish.Middleware {
 			wish.Fatalln(s, "no active terminal, skipping")
 			return nil
 		}
+
+		page := "auth"
+
+		if _, ok := users[s.User()]; ok {
+			log.Info("existing user")
+			// check the key is the one we expect
+			if s.PublicKey() != nil {
+				for user, pubkey := range users {
+					parsed, _, _, _, _ := ssh.ParseAuthorizedKey(
+						[]byte(pubkey),
+					)
+					if ssh.KeysEqual(s.PublicKey(), parsed) && user == s.User() {
+						page = "home"
+						log.Info("authorized by public key")
+					} else {
+						log.Info("not authorized by public key (redurecting to auth page)")
+					}
+				}
+			}
+		} else {
+			log.Info("new user")
+		}
+
 		m := model{
-			term:   pty.Term,
-			width:  pty.Window.Width,
-			height: pty.Window.Height,
-			time:   time.Now(),
-			keys:   keys,
-			help:   help.New(),
+			term:      pty.Term,
+			width:     pty.Window.Width,
+			height:    pty.Window.Height,
+			time:      time.Now(),
+			keys:      keys,
+			help:      help.New(),
+			user:      s.User(),
+			publicKey: s.PublicKey(),
+			page:      page,
 		}
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
 	}
@@ -144,18 +173,26 @@ func firstLineDefenseMiddleware() wish.Middleware {
 
 // Just a generic tea.Model to demo terminal information of ssh.
 type model struct {
-	term   string
-	width  int
-	height int
-	time   time.Time
-	keys   keyMap
-	help   help.Model
+	term      string
+	width     int
+	height    int
+	time      time.Time
+	keys      keyMap
+	help      help.Model
+	page      string
+	user      string
+	publicKey ssh.PublicKey
 }
 
 type timeMsg time.Time
 
+// a variable holding all the users
+var users = map[string]string{
+	// You can add add your name and public key here :)
+}
+
 func (m model) Init() tea.Cmd {
-	// set the dummy content to be the conversation history of the first group
+	// check if the user is an existing user
 	return nil
 }
 
@@ -178,11 +215,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	content := style.Copy().
-		Width(m.width-2).
-		Height(m.height-3).
+	fittedStyle := style.Copy().
+		Width(m.width - 2).
+		Height(m.height - 3)
+
+	switch m.page {
+	case "home":
+		return m.homeView(fittedStyle)
+	case "auth":
+		return m.authView(fittedStyle)
+	default:
+		return "unknown page"
+	}
+}
+
+func (m model) homeView(fittedStyle lipgloss.Style) string {
+	content := fittedStyle.
 		Align(lipgloss.Center, lipgloss.Center).
 		Render("ello world")
+
+	return lipgloss.JoinVertical(lipgloss.Center, content, m.help.View(m.keys))
+}
+
+func (m model) authView(fittedStyle lipgloss.Style) string {
+	content := fittedStyle.Copy().
+		Align(lipgloss.Center, lipgloss.Center).
+		Render("Welcome " + m.user)
 
 	return lipgloss.JoinVertical(lipgloss.Center, content, m.help.View(m.keys))
 }
