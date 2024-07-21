@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors" // Add this line to import the fmt package
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -83,6 +84,10 @@ func main() {
 		log.Error("Error loading .env file", "error", err)
 	}
 
+	http.HandleFunc("/slack/install", slackInstallHandler)
+	http.HandleFunc("/install", redirectToSlackInstallHandler)
+	http.HandleFunc("/", helloWorldHandler)
+
 	s, err := wish.NewServer(
 		wish.WithAddress(net.JoinHostPort(host, port)),
 		wish.WithHostKeyPath(".ssh/id_ed25519"),
@@ -108,6 +113,14 @@ func main() {
 		}
 	}()
 
+	log.Info("Starting HTTP server", "host", "localhost", "port", "23233")
+	go func() {
+		if err = http.ListenAndServe(":23233", nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Error("Could not start HTTP server", "error", err)
+			done <- nil
+		}
+	}()
+
 	<-done
 	log.Info("Stopping SSH server")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -115,6 +128,21 @@ func main() {
 	if err := s.Shutdown(ctx); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
 		log.Error("Could not stop server", "error", err)
 	}
+	log.Info("Stopping HTTP server")
+}
+
+func slackInstallHandler(w http.ResponseWriter, r *http.Request) {
+	// TODO: implement
+}
+func redirectToSlackInstallHandler(w http.ResponseWriter, r *http.Request) {
+	slackClientID := os.Getenv("SLACK_CLIENT_ID")
+	log.Info("redirecting to slack install page", "slackClientID", slackClientID)
+	http.Redirect(w, r, "https://slack.com/oauth/v2/authorize?scope=&user_scope=channels%3Aread%2Cchannels%3Awrite%2Cchannels%3Ahistory%2Cgroups%3Ahistory%2Cgroups%3Aread%2Cgroups%3Awrite%2Cmpim%3Ahistory%2Cmpim%3Aread%2Cmpim%3Awrite%2Cim%3Ahistory%2Cim%3Aread%2Cim%3Awrite%2Cidentify%2Cchat%3Awrite&redirect_uri=http%3A%2F%2Flocalhost%3A23233%2Fslack%2Finstall&client_id="+slackClientID, http.StatusFound)
+}
+func helloWorldHandler(w http.ResponseWriter, r *http.Request) {
+	// respond with a 200 OK and "hello world from charming slack :)"
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("hello world from charming slack :)"))
 }
 
 // You can write your own custom bubbletea middleware that wraps tea.Program.
@@ -274,7 +302,7 @@ func (m model) slackOnboardingView(fittedStyle lipgloss.Style) string {
 		Align(lipgloss.Center, lipgloss.Center).
 		Render("Click the link below to oauth your slack account with CS!" +
 			"\n\n" +
-			"")
+			"http://localhost:23233/install")
 
 	return content
 }
