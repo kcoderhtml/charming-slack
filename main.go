@@ -44,13 +44,13 @@ type keyMap struct {
 // ShortHelp returns keybindings to be shown in the mini help view. It's part
 // of the key.Map interface.
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.Quit}
+	return []key.Binding{k.Help, k.Quit, k.Enter}
 }
 
 // FullHelp returns keybindings for the expanded help view. It's part of the
 // key.Map interface.
 func (k keyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.Help}, {k.Quit}}
+	return [][]key.Binding{{k.Help}, {k.Quit}, {k.Enter}}
 }
 
 var keys = keyMap{
@@ -61,6 +61,10 @@ var keys = keyMap{
 	Quit: key.NewBinding(
 		key.WithKeys("q", "esc", "ctrl+c"),
 		key.WithHelp("q", "quit"),
+	),
+	Enter: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "continue"),
 	),
 }
 
@@ -209,6 +213,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.help.ShowAll = !m.help.ShowAll
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
+		case key.Matches(msg, m.keys.Enter):
+			if m.page == "auth" {
+				// add the user and their public key to the map
+				users[m.user] = string(m.publicKey.Marshal())
+				m.page = "slackOnboarding"
+			}
 		}
 	}
 	return m, nil
@@ -219,14 +229,20 @@ func (m model) View() string {
 		Width(m.width - 2).
 		Height(m.height - 3)
 
+	content := ""
+
 	switch m.page {
 	case "home":
-		return m.homeView(fittedStyle)
+		content = m.homeView(fittedStyle)
 	case "auth":
-		return m.authView(fittedStyle)
+		content = m.authView(fittedStyle)
+	case "slackOnboarding":
+		content = m.slackOnboardingView(fittedStyle)
 	default:
-		return "unknown page"
+		content = "unknown page"
 	}
+
+	return lipgloss.JoinVertical(lipgloss.Center, content, m.help.View(m.keys))
 }
 
 func (m model) homeView(fittedStyle lipgloss.Style) string {
@@ -234,13 +250,31 @@ func (m model) homeView(fittedStyle lipgloss.Style) string {
 		Align(lipgloss.Center, lipgloss.Center).
 		Render("ello world")
 
-	return lipgloss.JoinVertical(lipgloss.Center, content, m.help.View(m.keys))
+	return content
 }
 
 func (m model) authView(fittedStyle lipgloss.Style) string {
 	content := fittedStyle.Copy().
 		Align(lipgloss.Center, lipgloss.Center).
-		Render("Welcome " + m.user)
+		Render("Welcome " + m.user +
+			"\n" +
+			"Public key type: " + string(m.publicKey.Type()) +
+			"\n\n" +
+			"Welcome to charming slack! :)" +
+			"\n" +
+			"To get started with your new account lets sign you into slack!" +
+			"\n" +
+			"(Hit enter to continue)")
 
-	return lipgloss.JoinVertical(lipgloss.Center, content, m.help.View(m.keys))
+	return content
+}
+
+func (m model) slackOnboardingView(fittedStyle lipgloss.Style) string {
+	content := fittedStyle.Copy().
+		Align(lipgloss.Center, lipgloss.Center).
+		Render("Click the link below to oauth your slack account with CS!" +
+			"\n\n" +
+			"")
+
+	return content
 }
