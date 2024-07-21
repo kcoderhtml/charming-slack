@@ -316,7 +316,7 @@ func (m model) slackOnboardingView(fittedStyle lipgloss.Style) string {
 		Align(lipgloss.Center, lipgloss.Center).
 		Render("Click the link below to oauth your slack account with CS!" +
 			"\n\n" +
-			"http://localhost:23233/install")
+			"http://localhost:23233/install?state=" + m.user)
 
 	return content
 }
