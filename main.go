@@ -318,11 +318,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// add the user and their public key to the map
 				// parse the public key
 				parsed := m.publicKey.Type() + " " + base64.StdEncoding.EncodeToString(m.publicKey.Marshal())
-				log.Info("parsed public key", "parsed", parsed)
 				users[m.user] = userData{
 					PublicKey: string(parsed),
 				}
-				log.Info("adding user", "user", users[m.user])
+				log.Info("added user", "user", m.user, "with public key", parsed[:10])
 				m.page = "slackOnboarding"
 			}
 		}
