@@ -6,7 +6,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -55,26 +54,6 @@ func (k keyMap) FullHelp() [][]key.Binding {
 }
 
 var keys = keyMap{
-	Up: key.NewBinding(
-		key.WithKeys("up", "k"),
-		key.WithHelp("↑/k", "move up"),
-	),
-	Down: key.NewBinding(
-		key.WithKeys("down", "j"),
-		key.WithHelp("↓/j", "move down"),
-	),
-	Left: key.NewBinding(
-		key.WithKeys("left", "h"),
-		key.WithHelp("←/h", "move left"),
-	),
-	Right: key.NewBinding(
-		key.WithKeys("right", "l"),
-		key.WithHelp("→/l", "move right"),
-	),
-	Enter: key.NewBinding(
-		key.WithKeys("enter"),
-		key.WithHelp("enter", "submit"),
-	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
 		key.WithHelp("?", "toggle help"),
@@ -91,6 +70,7 @@ var style = lipgloss.NewStyle().
 	Background(lipgloss.Color("#7D56F4")).
 	Padding(1).
 	PaddingLeft(2).
+	PaddingRight(2).
 	Border(lipgloss.RoundedBorder())
 
 func main() {
@@ -150,15 +130,12 @@ func myCustomBubbleteaMiddleware() wish.Middleware {
 			return nil
 		}
 		m := model{
-			term:                 pty.Term,
-			width:                pty.Window.Width,
-			height:               pty.Window.Height,
-			time:                 time.Now(),
-			keys:                 keys,
-			help:                 help.New(),
-			selectedChannelIndex: 0,
-			messageIndex:         0,
-			messages:             []string{"Hello World"},
+			term:   pty.Term,
+			width:  pty.Window.Width,
+			height: pty.Window.Height,
+			time:   time.Now(),
+			keys:   keys,
+			help:   help.New(),
 		}
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
 	}
@@ -167,15 +144,12 @@ func myCustomBubbleteaMiddleware() wish.Middleware {
 
 // Just a generic tea.Model to demo terminal information of ssh.
 type model struct {
-	term                 string
-	width                int
-	height               int
-	time                 time.Time
-	keys                 keyMap
-	help                 help.Model
-	selectedChannelIndex int
-	messages             []string
-	messageIndex         int
+	term   string
+	width  int
+	height int
+	time   time.Time
+	keys   keyMap
+	help   help.Model
 }
 
 type timeMsg time.Time
@@ -194,25 +168,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, m.keys.Up):
-			if m.selectedChannelIndex > 0 {
-				m.selectedChannelIndex--
-			}
-		case key.Matches(msg, m.keys.Down):
-			if m.selectedChannelIndex < m.height-8 {
-				m.selectedChannelIndex++
-			}
-		case key.Matches(msg, m.keys.Left):
-			if m.messageIndex > 0 {
-				m.messageIndex--
-			}
-		case key.Matches(msg, m.keys.Right):
-			if m.messageIndex < len(m.messages)-1 {
-				m.messageIndex++
-			}
-		case key.Matches(msg, m.keys.Enter):
-			// Retrieve messages from the selected channel
-			m.messages = []string{"Hello World"}
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
 		case key.Matches(msg, m.keys.Quit):
@@ -223,35 +178,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	// Make a list of channels
-	var groupsList []string = []string{"Hello World"}
+	content := style.Copy().
+		Width(m.width-2).
+		Height(m.height-3).
+		Align(lipgloss.Center, lipgloss.Center).
+		Render("ello world")
 
-	// clamp the selected channel index
-	if m.selectedChannelIndex < 0 {
-		m.selectedChannelIndex = 0
-	} else if m.selectedChannelIndex >= len(groupsList) {
-		m.selectedChannelIndex = len(groupsList) - 1
-	}
-
-	// Render the list of groups
-	channels := style.Copy().Render(func() string {
-		output := ""
-		for i, group := range groupsList {
-			if i == m.selectedChannelIndex {
-				output += "> " + group + "\n"
-			} else {
-				output += "  " + group + "\n"
-			}
-		}
-		return output
-	}())
-
-	conversations := style.Copy().Width(m.width - 26).
-		Render(m.messages[0] +
-			"\nMessage: " + fmt.Sprint(m.messageIndex) +
-			" of " + fmt.Sprint(len(m.messages)))
-
-	helpView := m.help.View(m.keys)
-
-	return lipgloss.JoinVertical(lipgloss.Top, lipgloss.JoinHorizontal(lipgloss.Left, channels, conversations), helpView)
+	return lipgloss.JoinVertical(lipgloss.Center, content, m.help.View(m.keys))
 }
