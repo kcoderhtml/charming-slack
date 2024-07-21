@@ -321,7 +321,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				users[m.user] = userData{
 					PublicKey: string(parsed),
 				}
-				log.Info("added user", "user", m.user, "with public key", parsed[:10])
+				log.Info("added user", "user", m.user, "with public key", parsed[:20])
 				m.page = "slackOnboarding"
 			}
 		}
