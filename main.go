@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors" // Add this line to import the fmt package
 	"net"
 	"net/http"
@@ -171,9 +172,9 @@ func firstLineDefenseMiddleware() wish.Middleware {
 			log.Info("existing user")
 			// check the key is the one we expect
 			if s.PublicKey() != nil {
-				for user, pubkey := range users {
+				for user, userData := range users {
 					parsed, _, _, _, _ := ssh.ParseAuthorizedKey(
-						[]byte(pubkey),
+						[]byte(userData.PublicKey),
 					)
 					if ssh.KeysEqual(s.PublicKey(), parsed) && user == s.User() {
 						page = "home"
@@ -218,9 +219,16 @@ type model struct {
 
 type timeMsg time.Time
 
-// a variable holding all the users
-var users = map[string]string{
+// a variable holding all the users and their public keys and slack tokens and refresh token and real name
+var users = map[string]userData{
 	// You can add add your name and public key here :)
+}
+
+type userData struct {
+	PublicKey    string
+	SlackToken   string
+	RefreshToken string
+	RealName     string
 }
 
 func (m model) Init() tea.Cmd {
@@ -244,7 +252,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Enter):
 			if m.page == "auth" {
 				// add the user and their public key to the map
-				users[m.user] = string(m.publicKey.Marshal())
+				// parse the public key
+				parsed := m.publicKey.Type() + " " + base64.StdEncoding.EncodeToString(m.publicKey.Marshal())
+				log.Info("parsed public key", "parsed", parsed)
+				users[m.user] = userData{
+					PublicKey: string(parsed),
+				}
+				log.Info("adding user", "user", users[m.user])
 				m.page = "slackOnboarding"
 			}
 		}
