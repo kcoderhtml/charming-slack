@@ -83,7 +83,7 @@ func main() {
 		wish.WithAddress(net.JoinHostPort(host, port)),
 		wish.WithHostKeyPath(".ssh/id_ed25519"),
 		wish.WithMiddleware(
-			myCustomBubbleteaMiddleware(),
+			firstLineDefenseMiddleware(),
 			logging.Middleware(),
 		),
 	)
@@ -112,7 +112,7 @@ func main() {
 
 // You can write your own custom bubbletea middleware that wraps tea.Program.
 // Make sure you set the program input and output to ssh.Session.
-func myCustomBubbleteaMiddleware() wish.Middleware {
+func firstLineDefenseMiddleware() wish.Middleware {
 	newProg := func(m tea.Model, opts ...tea.ProgramOption) *tea.Program {
 		p := tea.NewProgram(m, opts...)
 		go func() {
