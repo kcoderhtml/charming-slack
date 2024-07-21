@@ -179,7 +179,7 @@ func firstLineDefenseMiddleware() wish.Middleware {
 						page = "home"
 						log.Info("authorized by public key")
 					} else {
-						log.Info("not authorized by public key (redurecting to auth page)")
+						log.Info("not authorized by public key (redirecting to auth page)")
 					}
 				}
 			}
