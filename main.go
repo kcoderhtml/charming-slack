@@ -38,7 +38,6 @@ type keyMap struct {
 	Down  key.Binding
 	Left  key.Binding
 	Right key.Binding
-	Tab   key.Binding
 	Enter key.Binding
 	Help  key.Binding
 	Quit  key.Binding
@@ -53,7 +52,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 // FullHelp returns keybindings for the expanded help view. It's part of the
 // key.Map interface.
 func (k keyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.Tab}, {k.Help}, {k.Quit}}
+	return [][]key.Binding{{k.Help}, {k.Quit}}
 }
 
 var keys = keyMap{
@@ -72,10 +71,6 @@ var keys = keyMap{
 	Right: key.NewBinding(
 		key.WithKeys("right", "l"),
 		key.WithHelp("→/l", "move right"),
-	),
-	Tab: key.NewBinding(
-		key.WithKeys("tab"),
-		key.WithHelp("tab", "focus next pane"),
 	),
 	Enter: key.NewBinding(
 		key.WithKeys("enter"),
@@ -211,7 +206,6 @@ type model struct {
 	width                int
 	height               int
 	time                 time.Time
-	focusedPane          int
 	keys                 keyMap
 	help                 help.Model
 	selectedChannelIndex int
@@ -264,8 +258,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.messages = ListOfMessages.Messages
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
-		case key.Matches(msg, m.keys.Tab):
-			m.focusedPane = (m.focusedPane + 1) % 2
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
 		}
@@ -307,7 +299,7 @@ func (m model) View() string {
 		return output
 	}())
 
-	conversations := style.Copy().Bold(m.focusedPane == 1).Width(m.width - 26).
+	conversations := style.Copy().Width(m.width - 26).
 		Render(m.messages[m.messageIndex].Text +
 			"\nMessage: " + fmt.Sprint(m.messageIndex) +
 			" of " + fmt.Sprint(len(m.messages)))
