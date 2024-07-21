@@ -23,7 +23,6 @@ import (
 	"github.com/charmbracelet/wish/bubbletea"
 	"github.com/charmbracelet/wish/logging"
 	"github.com/muesli/termenv"
-	"github.com/slack-go/slack"
 
 	"github.com/joho/godotenv"
 )
@@ -94,45 +93,11 @@ var style = lipgloss.NewStyle().
 	PaddingLeft(2).
 	Border(lipgloss.RoundedBorder())
 
-var slackApi *slack.Client
-var slackUserApi *slack.Client
-
-var groups []slack.Channel
-
-var messages []slack.Message
-
 func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Error("Error loading .env file", "error", err)
 	}
-
-	botApi := slack.New(os.Getenv("SLACK_TOKEN"))
-	userApi := slack.New(os.Getenv("SLACK_OAUTH_TOKEN"))
-	slackApi = botApi
-	slackUserApi = userApi
-
-	// get a slack client from .env
-	// Retrieve user groups
-	ListOfGroups, _, err := slackApi.GetConversationsForUser(&slack.GetConversationsForUserParameters{UserID: "U062UG485EE"})
-	if err != nil {
-		log.Error("Failed to retrieve user groups", "error", err)
-		return
-	}
-
-	// Assign retrieved user groups to the global variable
-	groups = ListOfGroups
-
-	// Retrieve messages from the first group
-	ListOfMessages, err := slackUserApi.GetConversationHistory(&slack.GetConversationHistoryParameters{ChannelID: groups[0].ID})
-
-	if err != nil {
-		log.Error("Failed to retrieve messages", "error", err)
-		return
-	}
-
-	// Assign retrieved messages to the global variable
-	messages = ListOfMessages.Messages
 
 	s, err := wish.NewServer(
 		wish.WithAddress(net.JoinHostPort(host, port)),
@@ -192,8 +157,8 @@ func myCustomBubbleteaMiddleware() wish.Middleware {
 			keys:                 keys,
 			help:                 help.New(),
 			selectedChannelIndex: 0,
-			messages:             messages,
 			messageIndex:         0,
+			messages:             []string{"Hello World"},
 		}
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
 	}
@@ -209,7 +174,7 @@ type model struct {
 	keys                 keyMap
 	help                 help.Model
 	selectedChannelIndex int
-	messages             []slack.Message
+	messages             []string
 	messageIndex         int
 }
 
@@ -246,16 +211,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.messageIndex++
 			}
 		case key.Matches(msg, m.keys.Enter):
-			// Retrieve messages from the selected group
-			ListOfMessages, err := slackUserApi.GetConversationHistory(&slack.GetConversationHistoryParameters{ChannelID: groups[m.selectedChannelIndex].ID})
-
-			if err != nil {
-				log.Error("Failed to retrieve messages", "error", err)
-				return m, nil
-			}
-
-			// Assign retrieved messages to the global variable
-			m.messages = ListOfMessages.Messages
+			// Retrieve messages from the selected channel
+			m.messages = []string{"Hello World"}
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
 		case key.Matches(msg, m.keys.Quit):
@@ -266,18 +223,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	// Make a list of groups
-	var groupsList []string
-
-	for _, group := range groups {
-		// break if the list is longer than the line count of the terminal
-		if len(groupsList) > m.height-8 {
-			groupsList = append(groupsList, "...")
-			break
-		}
-
-		groupsList = append(groupsList, group.Name)
-	}
+	// Make a list of channels
+	var groupsList []string = []string{"Hello World"}
 
 	// clamp the selected channel index
 	if m.selectedChannelIndex < 0 {
@@ -300,7 +247,7 @@ func (m model) View() string {
 	}())
 
 	conversations := style.Copy().Width(m.width - 26).
-		Render(m.messages[m.messageIndex].Text +
+		Render(m.messages[0] +
 			"\nMessage: " + fmt.Sprint(m.messageIndex) +
 			" of " + fmt.Sprint(len(m.messages)))
 
