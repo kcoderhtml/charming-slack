@@ -123,7 +123,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
 		case key.Matches(msg, m.keys.Enter):
-			if m.page == "auth" {
+			// page specific logic
+			switch {
+			case m.page == "auth":
 				// add the user and their public key to the map
 				// parse the public key
 				parsed := m.publicKey.Type() + " " + base64.StdEncoding.EncodeToString(m.publicKey.Marshal())
@@ -132,6 +134,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				log.Info("added user", "user", m.user, "with public key", parsed[:20])
 				m.page = "slackOnboarding"
+			case m.page == "slackOnboarding":
+				// check if the user has a slack token
+				// if they do, redirect to home
+				if database.Users[m.user].SlackToken != "" {
+					m.page = "home"
+				}
 			}
 		}
 	}
