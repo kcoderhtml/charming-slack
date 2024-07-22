@@ -224,13 +224,13 @@ func (m Model) SlackView(fittedStyle lipgloss.Style) string {
 		border, _, _, _, _ := style.GetBorder()
 
 		if isFirst && isActive {
-			border.BottomLeft = "│"
+			border.BottomLeft = "┘"
 		} else if isFirst && !isActive {
-			border.BottomLeft = "├"
+			border.BottomLeft = "┴"
 		} else if isLast && isActive {
-			border.BottomRight = "│"
+			border.BottomRight = "└"
 		} else if isLast && !isActive {
-			border.BottomRight = "┤"
+			border.BottomRight = "┴"
 		}
 
 		style = style.Border(border, true)
@@ -239,6 +239,13 @@ func (m Model) SlackView(fittedStyle lipgloss.Style) string {
 	}
 
 	row := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
+	borderLength := (m.width - lipgloss.Width(row) - 8) / 2
+	// add a tab with just a bottom border to the left and right of the row
+	borderBottomLeftStyle := lipgloss.NewStyle().Border(tabBorderWithBottom("┌", "─", "─", true), true).BorderForeground(highlightColor).Width(borderLength)
+	renderedTabs = append([]string{borderBottomLeftStyle.Render("")}, renderedTabs...)
+	borderBottomRightStyle := lipgloss.NewStyle().Border(tabBorderWithBottom("─", "─", "┐", true), true).BorderForeground(highlightColor).Width(borderLength)
+	renderedTabs = append(renderedTabs, borderBottomRightStyle.Render(""))
+	row = lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
 
 	if lipgloss.Width(row)+4 > m.width {
 		// return a too small window message
@@ -255,7 +262,11 @@ func (m Model) SlackView(fittedStyle lipgloss.Style) string {
 	}
 	doc.WriteString(row)
 	doc.WriteString("\n")
-	doc.WriteString(windowStyle.Width((lipgloss.Width(row) - windowStyle.GetHorizontalFrameSize())).Render(m.TabContent[m.activeTab]()))
+
+	doc.WriteString(windowStyle.
+		Width(m.width - 6).
+		Height(m.height - lipgloss.Height(row) - 3).
+		Render(m.TabContent[m.activeTab]()))
 	return docStyle.Render(doc.String())
 }
 
@@ -285,18 +296,25 @@ func (m Model) SlackOnboardingView(fittedStyle lipgloss.Style) string {
 	return content
 }
 
-func tabBorderWithBottom(left, middle, right string) lipgloss.Border {
+func tabBorderWithBottom(left, middle, right string, noTop bool) lipgloss.Border {
 	border := lipgloss.RoundedBorder()
 	border.BottomLeft = left
 	border.Bottom = middle
 	border.BottomRight = right
+	if noTop {
+		border.TopLeft = ""
+		border.Top = ""
+		border.TopRight = ""
+		border.Left = ""
+		border.Right = ""
+	}
 	return border
 }
 
 var (
 	docStyle         = lipgloss.NewStyle().Padding(1, 2, 1, 2)
 	highlightColor   = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}
-	inactiveTabStyle = lipgloss.NewStyle().Border(tabBorderWithBottom("┴", "─", "┴"), true).BorderForeground(highlightColor).Padding(0, 1)
-	activeTabStyle   = inactiveTabStyle.Copy().Border(tabBorderWithBottom("┘", " ", "└"), true)
+	inactiveTabStyle = lipgloss.NewStyle().Border(tabBorderWithBottom("┴", "─", "┴", false), true).BorderForeground(highlightColor).Padding(0, 1)
+	activeTabStyle   = inactiveTabStyle.Copy().Border(tabBorderWithBottom("┘", " ", "└", false), true)
 	windowStyle      = lipgloss.NewStyle().BorderForeground(highlightColor).Padding(2, 0).Align(lipgloss.Center).Border(lipgloss.NormalBorder()).UnsetBorderTop()
 )
