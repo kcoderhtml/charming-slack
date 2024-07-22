@@ -2,11 +2,14 @@ package bubbleViews
 
 import (
 	"encoding/base64"
+	"fmt"
+	"io"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
@@ -37,8 +40,9 @@ type Model struct {
 	keys        keymaps.KeyMap
 	help        help.Model
 	page        string
-	Tabs        []string
-	TabContent  []func(style lipgloss.Style) string
+	tabs        []string
+	tabContent  []func(style lipgloss.Style) string
+	channelList list.Model
 	user        string
 	publicKey   ssh.PublicKey
 	activeTab   int
@@ -46,6 +50,41 @@ type Model struct {
 }
 
 type timeMsg time.Time
+
+var (
+	titleStyle        = lipgloss.NewStyle().MarginLeft(2)
+	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
+	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
+	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
+	helpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
+)
+
+type item string
+
+func (i item) FilterValue() string { return "" }
+
+type itemDelegate struct{}
+
+func (d itemDelegate) Height() int                             { return 1 }
+func (d itemDelegate) Spacing() int                            { return 0 }
+func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	i, ok := listItem.(item)
+	if !ok {
+		return
+	}
+
+	str := fmt.Sprintf("%d. %s", index+1, i)
+
+	fn := itemStyle.Render
+	if index == m.Index() {
+		fn = func(s ...string) string {
+			return selectedItemStyle.Render("> " + strings.Join(s, " "))
+		}
+	}
+
+	fmt.Fprint(w, fn(str))
+}
 
 // You can write your own custom bubbletea middleware that wraps tea.Program.
 // Make sure you set the program input and output to ssh.Session.
@@ -95,26 +134,39 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			log.Info("new user")
 		}
 
+		channels := []list.Item{}
+		l := list.New(channels, itemDelegate{}, 24, 14)
+		l.Title = "Public Channels"
+		l.SetShowStatusBar(false)
+		l.SetShowHelp(false)
+		l.SetFilteringEnabled(false)
+		l.Styles.Title = titleStyle
+		l.Styles.PaginationStyle = paginationStyle
+		l.Styles.HelpStyle = helpStyle
+
 		m := Model{
-			term:      pty.Term,
-			width:     pty.Window.Width,
-			height:    pty.Window.Height,
-			time:      time.Now(),
-			keys:      keymaps.Keys,
-			help:      help.New(),
-			user:      s.User(),
-			publicKey: s.PublicKey(),
-			page:      page,
-			Tabs:      []string{"Public Channels", "Private Channels", "Direct Messages", "Search"},
-			TabContent: []func(style lipgloss.Style) string{
-				publicChannelsView,
-				privateChannelsView,
-				directMessagesView,
-				searchView,
-			},
+			term:        pty.Term,
+			width:       pty.Window.Width,
+			height:      pty.Window.Height,
+			time:        time.Now(),
+			keys:        keymaps.Keys,
+			help:        help.New(),
+			user:        s.User(),
+			publicKey:   s.PublicKey(),
+			page:        page,
+			tabs:        []string{"Public Channels", "Private Channels", "Direct Messages", "Search"},
+			channelList: l,
 			activeTab:   0,
 			slackClient: slack.New(database.Users[s.User()].SlackToken),
 		}
+
+		m.tabContent = []func(style lipgloss.Style) string{
+			m.publicChannelsView,
+			m.privateChannelsView,
+			m.directMessagesView,
+			m.searchView,
+		}
+
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
 	}
 	return bubbletea.MiddlewareWithProgramHandler(teaHandler, termenv.ANSI256)
@@ -162,15 +214,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case key.Matches(msg, m.keys.Tab):
 			if m.page == "slack" {
-				m.activeTab = (m.activeTab + 1) % len(m.Tabs)
+				m.activeTab = (m.activeTab + 1) % len(m.tabs)
 			}
 		case key.Matches(msg, m.keys.ShiftTab):
 			if m.page == "slack" {
-				m.activeTab = (m.activeTab - 1 + len(m.Tabs)) % len(m.Tabs)
+				m.activeTab = (m.activeTab - 1 + len(m.tabs)) % len(m.tabs)
 			}
 		}
 	}
-	return m, nil
+
+	var cmd tea.Cmd
+	m.channelList, cmd = m.channelList.Update(msg)
+	return m, cmd
 }
 
 func (m Model) View() string {
@@ -209,9 +264,9 @@ func (m Model) SlackView(fittedStyle lipgloss.Style) string {
 
 	var renderedTabs []string
 
-	for i, t := range m.Tabs {
+	for i, t := range m.tabs {
 		var style lipgloss.Style
-		isFirst, isLast, isActive := i == 0, i == len(m.Tabs)-1, i == m.activeTab
+		isFirst, isLast, isActive := i == 0, i == len(m.tabs)-1, i == m.activeTab
 		if isActive {
 			style = activeTabStyle.Copy()
 		} else {
@@ -268,7 +323,7 @@ func (m Model) SlackView(fittedStyle lipgloss.Style) string {
 		Width(m.width - 6).
 		Height(m.height - lipgloss.Height(row) - 3)
 
-	doc.WriteString(m.TabContent[m.activeTab](windowStyle))
+	doc.WriteString(m.tabContent[m.activeTab](windowStyle))
 	return docStyle.Render(doc.String())
 }
 
@@ -298,20 +353,32 @@ func (m Model) SlackOnboardingView(fittedStyle lipgloss.Style) string {
 	return content
 }
 
-func publicChannelsView(style lipgloss.Style) string {
+func (m Model) publicChannelsView(style lipgloss.Style) string {
+	// make the channels list display on the left side of the screen
+	channelStyle := lipgloss.NewStyle().
+		Align(lipgloss.Center, lipgloss.Center).
+		Width(style.GetWidth() / 3).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderRight(true)
 
-	return style.Render("public channels")
+	// display the messages on the right side of the screen
+	messageStyle := lipgloss.NewStyle().
+		Align(lipgloss.Center, lipgloss.Center).
+		Width(style.GetWidth() / 3)
+
+	panels := lipgloss.JoinHorizontal(lipgloss.Top, channelStyle.Render(m.channelList.View()), messageStyle.Render("messages"))
+	return style.Render(panels)
 }
 
-func privateChannelsView(style lipgloss.Style) string {
+func (m Model) privateChannelsView(style lipgloss.Style) string {
 	return style.Render("private channels")
 }
 
-func directMessagesView(style lipgloss.Style) string {
+func (m Model) directMessagesView(style lipgloss.Style) string {
 	return style.Render("direct messages")
 }
 
-func searchView(style lipgloss.Style) string {
+func (m Model) searchView(style lipgloss.Style) string {
 	return style.Render("search")
 }
 
