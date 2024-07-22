@@ -234,10 +234,25 @@ func (m Model) SlackView(fittedStyle lipgloss.Style) string {
 		}
 
 		style = style.Border(border, true)
+
 		renderedTabs = append(renderedTabs, style.Render(t))
 	}
 
 	row := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
+
+	if lipgloss.Width(row)+4 > m.width {
+		// return a too small window message
+		paddingStyle := lipgloss.NewStyle().
+			Padding(0, 2)
+
+		content := fittedStyle.
+			Width(m.width-6).
+			Height(m.height-3).
+			Background(lipgloss.NoColor{}).
+			Align(lipgloss.Center, lipgloss.Center).
+			Render("Window too small")
+		return paddingStyle.Render(content)
+	}
 	doc.WriteString(row)
 	doc.WriteString("\n")
 	doc.WriteString(windowStyle.Width((lipgloss.Width(row) - windowStyle.GetHorizontalFrameSize())).Render(m.TabContent[m.activeTab]()))
