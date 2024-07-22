@@ -37,7 +37,7 @@ type Model struct {
 	help       help.Model
 	page       string
 	Tabs       []string
-	TabContent []func() string
+	TabContent []func(style lipgloss.Style) string
 	user       string
 	publicKey  ssh.PublicKey
 	activeTab  int
@@ -104,19 +104,11 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			publicKey: s.PublicKey(),
 			page:      page,
 			Tabs:      []string{"Public Channels", "Private Channels", "Direct Messages", "Search"},
-			TabContent: []func() string{
-				func() string {
-					return "public channels"
-				},
-				func() string {
-					return "private channels"
-				},
-				func() string {
-					return "direct messages"
-				},
-				func() string {
-					return "search"
-				},
+			TabContent: []func(style lipgloss.Style) string{
+				publicChannelsView,
+				privateChannelsView,
+				directMessagesView,
+				searchView,
 			},
 			activeTab: 0,
 		}
@@ -268,10 +260,11 @@ func (m Model) SlackView(fittedStyle lipgloss.Style) string {
 	doc.WriteString(row)
 	doc.WriteString("\n")
 
-	doc.WriteString(windowStyle.
+	windowStyle := windowStyle.
 		Width(m.width - 6).
-		Height(m.height - lipgloss.Height(row) - 3).
-		Render(m.TabContent[m.activeTab]()))
+		Height(m.height - lipgloss.Height(row) - 3)
+
+	doc.WriteString(m.TabContent[m.activeTab](windowStyle))
 	return docStyle.Render(doc.String())
 }
 
@@ -299,6 +292,23 @@ func (m Model) SlackOnboardingView(fittedStyle lipgloss.Style) string {
 			"http://localhost:23233/install?state=" + m.user)
 
 	return content
+}
+
+func publicChannelsView(style lipgloss.Style) string {
+
+	return style.Render("public channels")
+}
+
+func privateChannelsView(style lipgloss.Style) string {
+	return style.Render("private channels")
+}
+
+func directMessagesView(style lipgloss.Style) string {
+	return style.Render("direct messages")
+}
+
+func searchView(style lipgloss.Style) string {
+	return style.Render("search")
 }
 
 func tabBorderWithBottom(left, middle, right string, noTop bool) lipgloss.Border {
