@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/wish"
 	"github.com/charmbracelet/wish/bubbletea"
 	"github.com/muesli/termenv"
+	"github.com/slack-go/slack"
 
 	"charming-slack/libs/database"
 	"charming-slack/libs/keymaps"
@@ -29,18 +30,19 @@ var style = lipgloss.NewStyle().
 	Border(lipgloss.RoundedBorder())
 
 type Model struct {
-	term       string
-	width      int
-	height     int
-	time       time.Time
-	keys       keymaps.KeyMap
-	help       help.Model
-	page       string
-	Tabs       []string
-	TabContent []func(style lipgloss.Style) string
-	user       string
-	publicKey  ssh.PublicKey
-	activeTab  int
+	term        string
+	width       int
+	height      int
+	time        time.Time
+	keys        keymaps.KeyMap
+	help        help.Model
+	page        string
+	Tabs        []string
+	TabContent  []func(style lipgloss.Style) string
+	user        string
+	publicKey   ssh.PublicKey
+	activeTab   int
+	slackClient *slack.Client
 }
 
 type timeMsg time.Time
@@ -110,7 +112,8 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 				directMessagesView,
 				searchView,
 			},
-			activeTab: 0,
+			activeTab:   0,
+			slackClient: slack.New(database.Users[s.User()].SlackToken),
 		}
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
 	}
@@ -150,6 +153,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// check if the user has a slack token
 				// if they do, redirect to home
 				if database.Users[m.user].SlackToken != "" {
+					m.slackClient = slack.New(database.Users[m.user].SlackToken)
 					m.page = "home"
 				}
 			case m.page == "home":
