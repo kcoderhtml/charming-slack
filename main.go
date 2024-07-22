@@ -241,8 +241,14 @@ func firstLineDefenseMiddleware() wish.Middleware {
 						[]byte(userData.PublicKey),
 					)
 					if ssh.KeysEqual(s.PublicKey(), parsed) && user == s.User() {
-						page = "home"
-						log.Info("authorized by public key")
+						if userData.SlackToken != "" {
+							page = "home"
+							log.Info("authorized by public key and slack integration is installed")
+						} else {
+							page = "slackOnboarding"
+							log.Info("authorized by public key")
+							log.Info("needs to install slack integration (redirecting to slack onboarding page)")
+						}
 					} else {
 						log.Info("not authorized by public key (redirecting to auth page)")
 					}
