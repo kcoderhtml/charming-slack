@@ -354,20 +354,8 @@ func (m Model) SlackOnboardingView(fittedStyle lipgloss.Style) string {
 }
 
 func (m Model) publicChannelsView(style lipgloss.Style) string {
-	// make the channels list display on the left side of the screen
-	channelStyle := lipgloss.NewStyle().
-		Align(lipgloss.Center, lipgloss.Center).
-		Width(style.GetWidth() / 3).
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderRight(true)
-
-	// display the messages on the right side of the screen
-	messageStyle := lipgloss.NewStyle().
-		Align(lipgloss.Center, lipgloss.Center).
-		Width(style.GetWidth() / 3)
-
-	panels := lipgloss.JoinHorizontal(lipgloss.Top, channelStyle.Render(m.channelList.View()), messageStyle.Render("messages"))
-	return style.Render(panels)
+	m.channelList.SetHeight(style.GetHeight() - 4)
+	return style.Render(m.channelList.View())
 }
 
 func (m Model) privateChannelsView(style lipgloss.Style) string {
