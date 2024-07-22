@@ -41,7 +41,7 @@ type Model struct {
 	help        help.Model
 	page        string
 	tabs        []string
-	tabContent  []func(style lipgloss.Style) string
+	tabContent  []func(lipgloss.Style) string
 	channelList list.Model
 	user        string
 	publicKey   ssh.PublicKey
@@ -172,8 +172,34 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 	return bubbletea.MiddlewareWithProgramHandler(teaHandler, termenv.ANSI256)
 }
 
+type channelUpdateMessage struct{ channels []slack.Channel }
+
+func (s channelUpdateMessage) GetItems() []list.Item {
+	items := []list.Item{}
+	for _, channel := range s.channels {
+		items = append(items, item(channel.Name))
+	}
+	return items
+}
+
+type errMsg struct{ err error }
+
+func (e errMsg) Error() string { return e.err.Error() }
+
+func getChannels(slackClient *slack.Client) tea.Cmd {
+	return func() tea.Msg {
+		// get the channels
+		channels, _, err := slackClient.GetConversationsForUser(&slack.GetConversationsForUserParameters{Limit: 10000, ExcludeArchived: true})
+		if err != nil {
+			return errMsg{err}
+		}
+
+		return channelUpdateMessage{channels}
+	}
+}
+
 func (m Model) Init() tea.Cmd {
-	return nil
+	return getChannels(m.slackClient)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -221,6 +247,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.activeTab = (m.activeTab - 1 + len(m.tabs)) % len(m.tabs)
 			}
 		}
+	case channelUpdateMessage:
+		m.channelList.SetItems(msg.GetItems())
 	}
 
 	var cmd tea.Cmd
