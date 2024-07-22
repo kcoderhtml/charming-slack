@@ -239,11 +239,16 @@ func (m Model) SlackView(fittedStyle lipgloss.Style) string {
 	}
 
 	row := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
-	borderLength := (m.width - lipgloss.Width(row) - 8) / 2
+	borderLength := (m.width - lipgloss.Width(row) - 8)
+	borderLengthLeft := borderLength / 2
+	borderLengthRight := borderLength / 2
+	if (m.width-lipgloss.Width(row)-8)%2 != 0 {
+		borderLengthRight++
+	}
 	// add a tab with just a bottom border to the left and right of the row
-	borderBottomLeftStyle := lipgloss.NewStyle().Border(tabBorderWithBottom("┌", "─", "─", true), true).BorderForeground(highlightColor).Width(borderLength)
+	borderBottomLeftStyle := lipgloss.NewStyle().Border(tabBorderWithBottom("┌", "─", "─", true), true).BorderForeground(highlightColor).Width(borderLengthLeft)
 	renderedTabs = append([]string{borderBottomLeftStyle.Render("")}, renderedTabs...)
-	borderBottomRightStyle := lipgloss.NewStyle().Border(tabBorderWithBottom("─", "─", "┐", true), true).BorderForeground(highlightColor).Width(borderLength)
+	borderBottomRightStyle := lipgloss.NewStyle().Border(tabBorderWithBottom("─", "─", "┐", true), true).BorderForeground(highlightColor).Width(borderLengthRight)
 	renderedTabs = append(renderedTabs, borderBottomRightStyle.Render(""))
 	row = lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
 
