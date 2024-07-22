@@ -2,6 +2,7 @@ package bubbleViews
 
 import (
 	"encoding/base64"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -28,15 +29,18 @@ var style = lipgloss.NewStyle().
 	Border(lipgloss.RoundedBorder())
 
 type Model struct {
-	term      string
-	width     int
-	height    int
-	time      time.Time
-	keys      keymaps.KeyMap
-	help      help.Model
-	page      string
-	user      string
-	publicKey ssh.PublicKey
+	term       string
+	width      int
+	height     int
+	time       time.Time
+	keys       keymaps.KeyMap
+	help       help.Model
+	page       string
+	Tabs       []string
+	TabContent []func() string
+	user       string
+	publicKey  ssh.PublicKey
+	activeTab  int
 }
 
 type timeMsg time.Time
@@ -99,6 +103,22 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			user:      s.User(),
 			publicKey: s.PublicKey(),
 			page:      page,
+			Tabs:      []string{"Public Channels", "Private Channels", "Direct Messages", "Search"},
+			TabContent: []func() string{
+				func() string {
+					return "public channels"
+				},
+				func() string {
+					return "private channels"
+				},
+				func() string {
+					return "direct messages"
+				},
+				func() string {
+					return "search"
+				},
+			},
+			activeTab: 0,
 		}
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
 	}
@@ -140,6 +160,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if database.Users[m.user].SlackToken != "" {
 					m.page = "home"
 				}
+			case m.page == "home":
+				// redirect to slack page
+				m.page = "slack"
+			}
+		case key.Matches(msg, m.keys.Tab):
+			if m.page == "slack" {
+				m.activeTab = (m.activeTab + 1) % len(m.Tabs)
+			}
+		case key.Matches(msg, m.keys.ShiftTab):
+			if m.page == "slack" {
+				m.activeTab = (m.activeTab - 1 + len(m.Tabs)) % len(m.Tabs)
 			}
 		}
 	}
@@ -156,6 +187,8 @@ func (m Model) View() string {
 	switch m.page {
 	case "home":
 		content = m.HomeView(fittedStyle)
+	case "slack":
+		content = m.SlackView(fittedStyle)
 	case "auth":
 		content = m.AuthView(fittedStyle)
 	case "slackOnboarding":
@@ -173,6 +206,42 @@ func (m Model) HomeView(fittedStyle lipgloss.Style) string {
 		Render("ello world!!!" + "\n\n" + database.Users[m.user].RealName + " welcome to charming slack! :)")
 
 	return content
+}
+
+func (m Model) SlackView(fittedStyle lipgloss.Style) string {
+	doc := strings.Builder{}
+
+	var renderedTabs []string
+
+	for i, t := range m.Tabs {
+		var style lipgloss.Style
+		isFirst, isLast, isActive := i == 0, i == len(m.Tabs)-1, i == m.activeTab
+		if isActive {
+			style = activeTabStyle
+		} else {
+			style = inactiveTabStyle
+		}
+		border, _, _, _, _ := style.GetBorder()
+
+		if isFirst && isActive {
+			border.BottomLeft = "│"
+		} else if isFirst && !isActive {
+			border.BottomLeft = "├"
+		} else if isLast && isActive {
+			border.BottomRight = "│"
+		} else if isLast && !isActive {
+			border.BottomRight = "┤"
+		}
+
+		style = style.Border(border, true)
+		renderedTabs = append(renderedTabs, style.Render(t))
+	}
+
+	row := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
+	doc.WriteString(row)
+	doc.WriteString("\n")
+	doc.WriteString(windowStyle.Width((lipgloss.Width(row) - windowStyle.GetHorizontalFrameSize())).Render(m.TabContent[m.activeTab]()))
+	return docStyle.Render(doc.String())
 }
 
 func (m Model) AuthView(fittedStyle lipgloss.Style) string {
@@ -200,3 +269,19 @@ func (m Model) SlackOnboardingView(fittedStyle lipgloss.Style) string {
 
 	return content
 }
+
+func tabBorderWithBottom(left, middle, right string) lipgloss.Border {
+	border := lipgloss.RoundedBorder()
+	border.BottomLeft = left
+	border.Bottom = middle
+	border.BottomRight = right
+	return border
+}
+
+var (
+	docStyle         = lipgloss.NewStyle().Padding(1, 2, 1, 2)
+	highlightColor   = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}
+	inactiveTabStyle = lipgloss.NewStyle().Border(tabBorderWithBottom("┴", "─", "┴"), true).BorderForeground(highlightColor).Padding(0, 1)
+	activeTabStyle   = inactiveTabStyle.Copy().Border(tabBorderWithBottom("┘", "─", "└"), true)
+	windowStyle      = lipgloss.NewStyle().BorderForeground(highlightColor).Padding(2, 0).Align(lipgloss.Center).Border(lipgloss.NormalBorder()).UnsetBorderTop()
+)
