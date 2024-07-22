@@ -162,7 +162,7 @@ func (m Model) View() string {
 func (m Model) HomeView(fittedStyle lipgloss.Style) string {
 	content := fittedStyle.
 		Align(lipgloss.Center, lipgloss.Center).
-		Render("ello world")
+		Render("ello world!!!" + "\n\n" + database.Users[m.user].RealName + " welcome to charming slack! :)")
 
 	return content
 }
