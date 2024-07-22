@@ -35,6 +35,9 @@ func main() {
 	if err != nil {
 		log.Error("Error loading .env file", "error", err)
 	}
+	// load the database
+	log.Info("Loading database")
+	database.LoadUserData()
 
 	http.HandleFunc("/slack/install", func(w http.ResponseWriter, r *http.Request) {
 		httpHandlers.SlackInstallHandler(w, r, database.SetUserData)
@@ -83,4 +86,7 @@ func main() {
 		log.Error("Could not stop server", "error", err)
 	}
 	log.Info("Stopping HTTP server")
+	// save the database
+	log.Info("Saving database")
+	database.SaveUserData()
 }
