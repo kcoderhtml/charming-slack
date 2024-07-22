@@ -217,9 +217,9 @@ func (m Model) SlackView(fittedStyle lipgloss.Style) string {
 		var style lipgloss.Style
 		isFirst, isLast, isActive := i == 0, i == len(m.Tabs)-1, i == m.activeTab
 		if isActive {
-			style = activeTabStyle
+			style = activeTabStyle.Copy()
 		} else {
-			style = inactiveTabStyle
+			style = inactiveTabStyle.Copy()
 		}
 		border, _, _, _, _ := style.GetBorder()
 
@@ -282,6 +282,6 @@ var (
 	docStyle         = lipgloss.NewStyle().Padding(1, 2, 1, 2)
 	highlightColor   = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}
 	inactiveTabStyle = lipgloss.NewStyle().Border(tabBorderWithBottom("┴", "─", "┴"), true).BorderForeground(highlightColor).Padding(0, 1)
-	activeTabStyle   = inactiveTabStyle.Copy().Border(tabBorderWithBottom("┘", "─", "└"), true)
+	activeTabStyle   = inactiveTabStyle.Copy().Border(tabBorderWithBottom("┘", " ", "└"), true)
 	windowStyle      = lipgloss.NewStyle().BorderForeground(highlightColor).Padding(2, 0).Align(lipgloss.Center).Border(lipgloss.NormalBorder()).UnsetBorderTop()
 )
