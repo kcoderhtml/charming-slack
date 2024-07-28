@@ -33,6 +33,12 @@ var style = lipgloss.NewStyle().
 	PaddingRight(2).
 	Border(lipgloss.RoundedBorder())
 
+type tab struct {
+	title   string
+	content func(lipgloss.Style, Model) string
+	state   string
+}
+
 type Model struct {
 	term               string
 	width              int
@@ -41,8 +47,7 @@ type Model struct {
 	keys               keymaps.KeyMap
 	help               help.Model
 	page               string
-	tabs               []string
-	tabContent         []func(lipgloss.Style, Model) string
+	tabs               []tab
 	channelList        list.Model
 	privateChannelList list.Model
 	dmList             list.Model
@@ -170,19 +175,12 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			user:               s.User(),
 			publicKey:          s.PublicKey(),
 			page:               page,
-			tabs:               []string{"Public Channels", "Private Channels", "Direct Messages", "Search"},
+			tabs:               []tab{{"Public Channels", publicChannelsView, "select"}, {"Private Channels", privateChannelsView, "select"}, {"DMs", directMessagesView, "select"}, {"Search", searchView, "select"}},
 			channelList:        l,
 			privateChannelList: privateChannelL,
 			dmList:             dmL,
 			activeTab:          0,
 			slackClient:        slack.New(database.Users[s.User()].SlackToken),
-		}
-
-		m.tabContent = []func(style lipgloss.Style, m Model) string{
-			publicChannelsView,
-			privateChannelsView,
-			directMessagesView,
-			searchView,
 		}
 
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
@@ -419,7 +417,7 @@ func SlackView(fittedStyle lipgloss.Style, m Model) string {
 
 		style = style.Border(border, true)
 
-		renderedTabs = append(renderedTabs, style.Render(t))
+		renderedTabs = append(renderedTabs, style.Render(t.title))
 	}
 
 	row := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
@@ -456,7 +454,7 @@ func SlackView(fittedStyle lipgloss.Style, m Model) string {
 		Width(m.width - 6).
 		Height(m.height - lipgloss.Height(row) - 3)
 
-	doc.WriteString(m.tabContent[m.activeTab](windowStyle, m))
+	doc.WriteString(m.tabs[m.activeTab].content(windowStyle, m))
 	return docStyle.Render(doc.String())
 }
 
