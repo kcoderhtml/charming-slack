@@ -593,13 +593,7 @@ func privateChannelsView(style lipgloss.Style, m Model) string {
 
 		return style.Render(m.privateChannelList.View())
 	case "messages":
-		// list all the messages received via the paginator
-		var b strings.Builder
-		b.WriteString("\n  Messages in #" + m.privateChannelList.SelectedItem().FilterValue() + "\n\n")
-
-		m.tabs[1].messagePager.Height = style.GetHeight() - 8
-
-		return style.Render(b.String(), m.tabs[1].messagePager.View())
+		return m.tabs[1].messagePager.View()
 	}
 
 	return ""
@@ -619,13 +613,7 @@ func directMessagesView(style lipgloss.Style, m Model) string {
 
 		return style.Render(m.dmList.View())
 	case "messages":
-		// list all the messages received via the paginator
-		var b strings.Builder
-		b.WriteString("\n  " + m.dmList.SelectedItem().FilterValue() + "\n\n")
-
-		m.tabs[2].messagePager.Height = 8
-
-		return style.Render(b.String(), m.tabs[0].messagePager.View())
+		return m.tabs[0].messagePager.View()
 	}
 
 	return ""
