@@ -34,21 +34,25 @@ var style = lipgloss.NewStyle().
 	Border(lipgloss.RoundedBorder())
 
 type Model struct {
-	term        string
-	width       int
-	height      int
-	time        time.Time
-	keys        keymaps.KeyMap
-	help        help.Model
-	page        string
-	tabs        []string
-	tabContent  []func(lipgloss.Style, Model) string
-	channelList list.Model
-	channels    []slack.Channel
-	user        string
-	publicKey   ssh.PublicKey
-	activeTab   int
-	slackClient *slack.Client
+	term               string
+	width              int
+	height             int
+	time               time.Time
+	keys               keymaps.KeyMap
+	help               help.Model
+	page               string
+	tabs               []string
+	tabContent         []func(lipgloss.Style, Model) string
+	channelList        list.Model
+	privateChannelList list.Model
+	dmList             list.Model
+	channels           []slack.Channel
+	privateChannels    []slack.Channel
+	dms                []slack.Channel
+	user               string
+	publicKey          ssh.PublicKey
+	activeTab          int
+	slackClient        *slack.Client
 }
 
 type timeMsg time.Time
@@ -150,20 +154,28 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 		l.Styles.PaginationStyle = paginationStyle
 		l.Styles.HelpStyle = helpStyle
 
+		privateChannelL := l
+		privateChannelL.Title = "Private Channels"
+
+		dmL := l
+		dmL.Title = "DMs"
+
 		m := Model{
-			term:        pty.Term,
-			width:       pty.Window.Width,
-			height:      pty.Window.Height,
-			time:        time.Now(),
-			keys:        keymaps.Keys,
-			help:        help.New(),
-			user:        s.User(),
-			publicKey:   s.PublicKey(),
-			page:        page,
-			tabs:        []string{"Public Channels", "Private Channels", "Direct Messages", "Search"},
-			channelList: l,
-			activeTab:   0,
-			slackClient: slack.New(database.Users[s.User()].SlackToken),
+			term:               pty.Term,
+			width:              pty.Window.Width,
+			height:             pty.Window.Height,
+			time:               time.Now(),
+			keys:               keymaps.Keys,
+			help:               help.New(),
+			user:               s.User(),
+			publicKey:          s.PublicKey(),
+			page:               page,
+			tabs:               []string{"Public Channels", "Private Channels", "Direct Messages", "Search"},
+			channelList:        l,
+			privateChannelList: privateChannelL,
+			dmList:             dmL,
+			activeTab:          0,
+			slackClient:        slack.New(database.Users[s.User()].SlackToken),
 		}
 
 		m.tabContent = []func(style lipgloss.Style, m Model) string{
@@ -179,6 +191,8 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 }
 
 type channelUpdateMessage struct{ channels []slack.Channel }
+type privateChannelUpdateMessage struct{ channels []slack.Channel }
+type dmUpdateMessage struct{ dms []slack.Channel }
 
 type errMsg struct{ err error }
 
@@ -196,8 +210,32 @@ func getChannels(slackClient *slack.Client) tea.Cmd {
 	}
 }
 
+func getPrivateChannels(slackClient *slack.Client) tea.Cmd {
+	return func() tea.Msg {
+		// get the channels
+		channels, _, err := slackClient.GetConversationsForUser(&slack.GetConversationsForUserParameters{Limit: 10000, ExcludeArchived: true, Types: []string{"private_channel"}})
+		if err != nil {
+			return errMsg{err}
+		}
+
+		return privateChannelUpdateMessage{channels}
+	}
+}
+
+func getDms(slackClient *slack.Client) tea.Cmd {
+	return func() tea.Msg {
+		// get the channels
+		dms, _, err := slackClient.GetConversationsForUser(&slack.GetConversationsForUserParameters{Limit: 10000, ExcludeArchived: true, Types: []string{"mpim", "im"}})
+		if err != nil {
+			return errMsg{err}
+		}
+
+		return dmUpdateMessage{dms}
+	}
+}
+
 func (m Model) Init() tea.Cmd {
-	return getChannels(m.slackClient)
+	return tea.Batch(getChannels(m.slackClient), getPrivateChannels(m.slackClient), getDms(m.slackClient))
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -252,13 +290,41 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			items = append(items, item(utils.ClampString(channel.Name, m.channelList.Width()-4)))
 		}
 		m.channelList.SetItems(items)
+	case privateChannelUpdateMessage:
+		m.privateChannels = msg.channels
+		items := []list.Item{}
+		for _, channel := range m.privateChannels {
+			items = append(items, item(utils.ClampString(channel.Name, m.privateChannelList.Width()-4)))
+		}
+		m.privateChannelList.SetItems(items)
+	case dmUpdateMessage:
+		m.dms = msg.dms
+		items := []list.Item{}
+		for _, dm := range m.dms {
+			items = append(items, item(utils.ClampString(dm.Name, m.dmList.Width()-4)))
+		}
+		m.dmList.SetItems(items)
 	case errMsg:
 		log.Error(msg.Error())
 	}
 
-	var cmd tea.Cmd
-	m.channelList, cmd = m.channelList.Update(msg)
-	return m, cmd
+	var cmds []tea.Cmd
+	// check which tab the user is on
+	switch m.activeTab {
+	case 0:
+		channelList, channelCmd := m.channelList.Update(msg)
+		m.channelList = channelList
+		cmds = append(cmds, channelCmd)
+	case 1:
+		mpimList, mpimCmd := m.privateChannelList.Update(msg)
+		m.privateChannelList = mpimList
+		cmds = append(cmds, mpimCmd)
+	case 2:
+		imList, imCmd := m.dmList.Update(msg)
+		m.dmList = imList
+		cmds = append(cmds, imCmd)
+	}
+	return m, tea.Batch(cmds...)
 }
 
 func (m Model) View() string {
@@ -392,11 +458,13 @@ func publicChannelsView(style lipgloss.Style, m Model) string {
 }
 
 func privateChannelsView(style lipgloss.Style, m Model) string {
-	return style.Render("private channels")
+	m.privateChannelList.SetHeight(style.GetHeight() - 4)
+	return style.Render(m.privateChannelList.View())
 }
 
 func directMessagesView(style lipgloss.Style, m Model) string {
-	return style.Render("direct messages")
+	m.dmList.SetHeight(style.GetHeight() - 4)
+	return style.Render(m.dmList.View())
 }
 
 func searchView(style lipgloss.Style, m Model) string {
