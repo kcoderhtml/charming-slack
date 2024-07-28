@@ -242,33 +242,33 @@ func getDms(slackClient *slack.Client) tea.Cmd {
 
 		items := []list.Item{}
 		for _, dm := range dms {
-			// name := "unknown"
-			// if dm.NameNormalized == "" {
-			// 	// get the user's display name
-			// 	identity, err := slackClient.GetUserInfo(dm.User)
-			// 	if err != nil {
-			// 		log.Error("error getting dm name", "err", err)
-			// 		// wait 2 seconds before trying again
-			// 		time.Sleep(2 * time.Second)
-			// 		identity, err = slackClient.GetUserInfo(dm.User)
-			// 		if err != nil {
-			// 			log.Error("error getting dm name", "err", err)
-			// 			continue
-			// 		}
-			// 	}
+			name := "unknown"
+			if dm.NameNormalized == "" {
+				// get the user's display name
+				identity, err := slackClient.GetUserInfo(dm.User)
+				if err != nil {
+					log.Error("error getting dm name", "err", err)
+					// wait 2 seconds before trying again
+					time.Sleep(2 * time.Second)
+					identity, err = slackClient.GetUserInfo(dm.User)
+					if err != nil {
+						log.Error("error getting dm name", "err", err)
+						continue
+					}
+				}
 
-			// 	if identity.Profile.DisplayName != "" {
-			// 		name = identity.Profile.DisplayName
-			// 	} else {
-			// 		if identity.Profile.RealName != "" {
-			// 			name = identity.Profile.RealName
-			// 		} else {
-			// 			name = "unknown"
-			// 		}
-			// 	}
-			// }
+				if identity.Profile.DisplayName != "" {
+					name = identity.Profile.DisplayName
+				} else {
+					if identity.Profile.RealName != "" {
+						name = identity.Profile.RealName
+					} else {
+						name = "unknown"
+					}
+				}
+			}
 
-			items = append(items, item(dm.Name))
+			items = append(items, item(name))
 		}
 
 		log.Info("got dms", "#dm", len(items))
