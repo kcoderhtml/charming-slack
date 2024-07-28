@@ -34,9 +34,10 @@ var style = lipgloss.NewStyle().
 	Border(lipgloss.RoundedBorder())
 
 type tab struct {
-	title   string
-	content func(lipgloss.Style, Model) string
-	state   string
+	title    string
+	content  func(lipgloss.Style, Model) string
+	messages []slack.Message
+	state    string
 }
 
 type Model struct {
@@ -173,7 +174,7 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			user:               s.User(),
 			publicKey:          s.PublicKey(),
 			page:               page,
-			tabs:               []tab{{"Public Channels", publicChannelsView, "select"}, {"Private Channels", privateChannelsView, "select"}, {"DMs", directMessagesView, "select"}, {"Search", searchView, "select"}},
+			tabs:               []tab{{"Public Channels", publicChannelsView, []slack.Message{}, "select"}, {"Private Channels", privateChannelsView, []slack.Message{}, "select"}, {"DMs", directMessagesView, []slack.Message{}, "select"}, {"Search", searchView, []slack.Message{}, "select"}},
 			channelList:        l,
 			privateChannelList: privateChannelL,
 			dmList:             dmL,
@@ -268,11 +269,32 @@ func getDms(slackClient *slack.Client) tea.Cmd {
 	}
 }
 
+type tabMessageUpdate struct {
+	messages []slack.Message
+	tab      int
+	channel  string
+}
+
+func getMessages(slackClient *slack.Client, channel string, tab int) tea.Cmd {
+	return func() tea.Msg {
+		messages, err := slackClient.GetConversationHistory(&slack.GetConversationHistoryParameters{ChannelID: channel, Limit: 100})
+		if err != nil {
+			log.Error("error fetching messages", "err", err)
+
+			return errMsg{err}
+		}
+
+		return tabMessageUpdate{messages: messages.Messages, tab: tab, channel: channel}
+	}
+}
+
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(getChannels(m.slackClient), getPrivateChannels(m.slackClient), getDms(m.slackClient))
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
 	case time.Time:
 		m.time = time.Time(msg)
@@ -307,6 +329,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case m.page == "home":
 				// redirect to slack page
 				m.page = "slack"
+			case m.page == "slack":
+				// check what page we are on
+				switch m.activeTab {
+				case 0:
+					// switch tab state to messages and run the get messages command
+					m.tabs[m.activeTab].state = "messages"
+					cmds = append(cmds, getMessages(m.slackClient, m.channels[m.channelList.Index()].ID, m.activeTab))
+				}
 			}
 		case key.Matches(msg, m.keys.Tab):
 			if m.page == "slack" {
@@ -334,11 +364,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case dmUpdateMessage:
 		m.dms = msg.dms
 		m.dmList.SetItems(msg.items)
-	case errMsg:
-		log.Error(msg.Error())
+	case tabMessageUpdate:
+		m.tabs[msg.tab].messages = msg.messages
 	}
 
-	var cmds []tea.Cmd
 	// check which tab the user is on
 	switch m.activeTab {
 	case 0:
