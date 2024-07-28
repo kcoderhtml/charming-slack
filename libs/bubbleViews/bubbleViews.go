@@ -483,42 +483,57 @@ func (m Model) SlackOnboardingView(fittedStyle lipgloss.Style) string {
 }
 
 func publicChannelsView(style lipgloss.Style, m Model) string {
-	m.channelList.SetHeight(style.GetHeight() - 4)
-	m.channelList.SetWidth(style.GetWidth() - 8)
+	switch m.tabs[m.activeTab].state {
+	case "select":
+		m.channelList.SetHeight(style.GetHeight() - 4)
+		m.channelList.SetWidth(style.GetWidth() - 8)
 
-	items := []list.Item{}
-	for _, channel := range m.channelList.Items() {
-		items = append(items, item(utils.ClampString(fmt.Sprintf("%v", channel), m.channelList.Width())))
+		items := []list.Item{}
+		for _, channel := range m.channelList.Items() {
+			items = append(items, item(utils.ClampString(fmt.Sprintf("%v", channel), m.channelList.Width())))
+		}
+		m.channelList.SetItems(items)
+
+		return style.Render(m.channelList.View())
 	}
-	m.channelList.SetItems(items)
 
-	return style.Render(m.channelList.View())
+	return ""
 }
 
 func privateChannelsView(style lipgloss.Style, m Model) string {
-	m.privateChannelList.SetHeight(style.GetHeight() - 4)
-	m.privateChannelList.SetWidth(style.GetWidth() - 8)
+	switch m.tabs[m.activeTab].state {
+	case "select":
+		m.privateChannelList.SetHeight(style.GetHeight() - 4)
+		m.privateChannelList.SetWidth(style.GetWidth() - 8)
 
-	items := []list.Item{}
-	for _, channel := range m.privateChannelList.Items() {
-		items = append(items, item(utils.ClampString(fmt.Sprintf("%v", channel), m.privateChannelList.Width())))
+		items := []list.Item{}
+		for _, channel := range m.privateChannelList.Items() {
+			items = append(items, item(utils.ClampString(fmt.Sprintf("%v", channel), m.privateChannelList.Width())))
+		}
+		m.privateChannelList.SetItems(items)
+
+		return style.Render(m.privateChannelList.View())
 	}
-	m.privateChannelList.SetItems(items)
 
-	return style.Render(m.privateChannelList.View())
+	return ""
 }
 
 func directMessagesView(style lipgloss.Style, m Model) string {
-	m.dmList.SetHeight(style.GetHeight() - 4)
-	m.dmList.SetWidth(style.GetWidth() - 8)
+	switch m.tabs[m.activeTab].state {
+	case "select":
+		m.dmList.SetHeight(style.GetHeight() - 4)
+		m.dmList.SetWidth(style.GetWidth() - 8)
 
-	items := []list.Item{}
-	for _, dm := range m.dmList.Items() {
-		items = append(items, item(utils.ClampString(fmt.Sprintf("%v", dm), m.dmList.Width())))
+		items := []list.Item{}
+		for _, dm := range m.dmList.Items() {
+			items = append(items, item(utils.ClampString(fmt.Sprintf("%v", dm), m.dmList.Width())))
+		}
+		m.dmList.SetItems(items)
+
+		return style.Render(m.dmList.View())
 	}
-	m.dmList.SetItems(items)
 
-	return style.Render(m.dmList.View())
+	return ""
 }
 
 func searchView(style lipgloss.Style, m Model) string {
