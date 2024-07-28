@@ -348,6 +348,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					cmds = append(cmds, getMessages(m.slackClient, m.dms[m.dmList.Index()].ID, m.activeTab))
 				}
 			}
+		case key.Matches(msg, m.keys.ShiftEnter):
+			if m.page == "slack" {
+				m.tabs[m.activeTab].state = "select"
+				log.Info("set state to select")
+			}
 		case key.Matches(msg, m.keys.Tab):
 			if m.page == "slack" {
 				m.activeTab = (m.activeTab + 1) % len(m.tabs)
