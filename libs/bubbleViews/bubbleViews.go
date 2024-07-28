@@ -146,9 +146,7 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 		}
 
 		channels := []list.Item{
-			item("test"),
-			item("test2"),
-			item("test3"),
+			item("plz wait while i'm 		loading..."),
 		}
 		l := list.New(channels, itemDelegate{}, 24, 14)
 		l.Title = "Public Channels"
@@ -323,14 +321,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.channels = msg.channels
 		items := []list.Item{}
 		for _, channel := range m.channels {
-			items = append(items, item(utils.ClampString(channel.Name, m.channelList.Width()-4)))
+			items = append(items, item(channel.Name))
 		}
 		m.channelList.SetItems(items)
 	case privateChannelUpdateMessage:
 		m.privateChannels = msg.channels
 		items := []list.Item{}
 		for _, channel := range m.privateChannels {
-			items = append(items, item(utils.ClampString(channel.Name, m.privateChannelList.Width()-4)))
+			items = append(items, item(channel.Name))
 		}
 		m.privateChannelList.SetItems(items)
 	case dmUpdateMessage:
@@ -486,11 +484,27 @@ func (m Model) SlackOnboardingView(fittedStyle lipgloss.Style) string {
 
 func publicChannelsView(style lipgloss.Style, m Model) string {
 	m.channelList.SetHeight(style.GetHeight() - 4)
+	m.channelList.SetWidth(style.GetWidth() - 8)
+
+	items := []list.Item{}
+	for _, channel := range m.channelList.Items() {
+		items = append(items, item(utils.ClampString(fmt.Sprintf("%v", channel), m.channelList.Width())))
+	}
+	m.channelList.SetItems(items)
+
 	return style.Render(m.channelList.View())
 }
 
 func privateChannelsView(style lipgloss.Style, m Model) string {
 	m.privateChannelList.SetHeight(style.GetHeight() - 4)
+	m.privateChannelList.SetWidth(style.GetWidth() - 8)
+
+	items := []list.Item{}
+	for _, channel := range m.privateChannelList.Items() {
+		items = append(items, item(utils.ClampString(fmt.Sprintf("%v", channel), m.privateChannelList.Width())))
+	}
+	m.privateChannelList.SetItems(items)
+
 	return style.Render(m.privateChannelList.View())
 }
 
@@ -503,6 +517,7 @@ func directMessagesView(style lipgloss.Style, m Model) string {
 		items = append(items, item(utils.ClampString(fmt.Sprintf("%v", dm), m.dmList.Width())))
 	}
 	m.dmList.SetItems(items)
+
 	return style.Render(m.dmList.View())
 }
 
