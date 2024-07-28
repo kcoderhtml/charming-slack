@@ -169,10 +169,10 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 		dmL := l
 		dmL.Title = "DMs"
 
-		p := viewport.New(pty.Window.Width-4, pty.Window.Height-6)
+		p := viewport.New(pty.Window.Width-4, pty.Window.Height-5)
 		p.Style = p.Style.Border(lipgloss.RoundedBorder()).
 			BorderTop(false).BorderForeground(lipgloss.Color("#7D56F3")).
-			PaddingTop(0).PaddingLeft(2).PaddingRight(2)
+			Padding(1).PaddingLeft(2).PaddingRight(2)
 
 		m := Model{
 			term:               pty.Term,
