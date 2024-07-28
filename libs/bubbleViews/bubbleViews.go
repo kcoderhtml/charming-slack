@@ -192,7 +192,10 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 
 type channelUpdateMessage struct{ channels []slack.Channel }
 type privateChannelUpdateMessage struct{ channels []slack.Channel }
-type dmUpdateMessage struct{ dms []slack.Channel }
+type dmUpdateMessage struct {
+	items []list.Item
+	dms   []slack.Channel
+}
 
 type errMsg struct{ err error }
 
@@ -225,12 +228,47 @@ func getPrivateChannels(slackClient *slack.Client) tea.Cmd {
 func getDms(slackClient *slack.Client) tea.Cmd {
 	return func() tea.Msg {
 		// get the channels
-		dms, _, err := slackClient.GetConversationsForUser(&slack.GetConversationsForUserParameters{Limit: 10000, ExcludeArchived: true, Types: []string{"mpim", "im"}})
+		dms, _, err := slackClient.GetConversationsForUser(&slack.GetConversationsForUserParameters{Limit: 10000, ExcludeArchived: true, Types: []string{"im"}})
 		if err != nil {
 			return errMsg{err}
 		}
 
-		return dmUpdateMessage{dms}
+		items := []list.Item{}
+		for _, dm := range dms {
+			name := ""
+			if dm.NameNormalized == "" {
+				// get the user's display name
+				identity, err := slackClient.GetUserInfo(dm.User)
+				if err != nil {
+					log.Error("error getting dm name", "err", err)
+					// wait 2 seconds before trying again
+					time.Sleep(2 * time.Second)
+					identity, err = slackClient.GetUserInfo(dm.User)
+					if err != nil {
+						log.Error("error getting dm name", "err", err)
+						continue
+					}
+				}
+
+				if identity.Profile.DisplayName != "" {
+					name = identity.Profile.DisplayName
+				} else {
+					if identity.Profile.RealName != "" {
+						name = identity.Profile.RealName
+					} else {
+						name = "unknown"
+					}
+				}
+			} else {
+				name = "unknown"
+			}
+
+			items = append(items, item(name))
+		}
+
+		log.Info("got dms", "#dm", len(items))
+
+		return dmUpdateMessage{items, dms}
 	}
 }
 
@@ -299,11 +337,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.privateChannelList.SetItems(items)
 	case dmUpdateMessage:
 		m.dms = msg.dms
-		items := []list.Item{}
-		for _, dm := range m.dms {
-			items = append(items, item(utils.ClampString(dm.Name, m.dmList.Width()-4)))
-		}
-		m.dmList.SetItems(items)
+		m.dmList.SetItems(msg.items)
 	case errMsg:
 		log.Error(msg.Error())
 	}
@@ -464,6 +498,13 @@ func privateChannelsView(style lipgloss.Style, m Model) string {
 
 func directMessagesView(style lipgloss.Style, m Model) string {
 	m.dmList.SetHeight(style.GetHeight() - 4)
+	m.dmList.SetWidth(style.GetWidth() - 8)
+
+	items := []list.Item{}
+	for _, dm := range m.dmList.Items() {
+		items = append(items, item(utils.ClampString(fmt.Sprintf("%v", dm), m.dmList.Width())))
+	}
+	m.dmList.SetItems(items)
 	return style.Render(m.dmList.View())
 }
 
