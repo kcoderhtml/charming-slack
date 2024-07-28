@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/paginator"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
@@ -34,10 +35,11 @@ var style = lipgloss.NewStyle().
 	Border(lipgloss.RoundedBorder())
 
 type tab struct {
-	title    string
-	content  func(lipgloss.Style, Model) string
-	messages []slack.Message
-	state    string
+	title        string
+	content      func(lipgloss.Style, Model) string
+	messages     []slack.Message
+	state        string
+	messagePager paginator.Model
 }
 
 type Model struct {
@@ -73,7 +75,7 @@ var (
 
 type item string
 
-func (i item) FilterValue() string { return "" }
+func (i item) FilterValue() string { return string(i) }
 
 type itemDelegate struct{}
 
@@ -174,7 +176,7 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			user:               s.User(),
 			publicKey:          s.PublicKey(),
 			page:               page,
-			tabs:               []tab{{"Public Channels", publicChannelsView, []slack.Message{}, "select"}, {"Private Channels", privateChannelsView, []slack.Message{}, "select"}, {"DMs", directMessagesView, []slack.Message{}, "select"}, {"Search", searchView, []slack.Message{}, "select"}},
+			tabs:               []tab{{"Public Channels", publicChannelsView, []slack.Message{}, "select", paginator.New()}, {"Private Channels", privateChannelsView, []slack.Message{}, "select", paginator.New()}, {"DMs", directMessagesView, []slack.Message{}, "select", paginator.New()}, {"Search", searchView, []slack.Message{}, "select", paginator.New()}},
 			channelList:        l,
 			privateChannelList: privateChannelL,
 			dmList:             dmL,
@@ -336,6 +338,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// switch tab state to messages and run the get messages command
 					m.tabs[m.activeTab].state = "messages"
 					cmds = append(cmds, getMessages(m.slackClient, m.channels[m.channelList.Index()].ID, m.activeTab))
+				case 1:
+					// switch tab state to messages and run the get messages command
+					m.tabs[m.activeTab].state = "messages"
+					cmds = append(cmds, getMessages(m.slackClient, m.privateChannels[m.privateChannelList.Index()].ID, m.activeTab))
+				case 2:
+					// switch tab state to messages and run the get messages command
+					m.tabs[m.activeTab].state = "messages"
+					cmds = append(cmds, getMessages(m.slackClient, m.dms[m.dmList.Index()].ID, m.activeTab))
 				}
 			}
 		case key.Matches(msg, m.keys.Tab):
@@ -366,22 +376,44 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.dmList.SetItems(msg.items)
 	case tabMessageUpdate:
 		m.tabs[msg.tab].messages = msg.messages
+		m.tabs[msg.tab].messagePager.SetTotalPages(len(msg.messages))
 	}
 
 	// check which tab the user is on
 	switch m.activeTab {
 	case 0:
-		channelList, channelCmd := m.channelList.Update(msg)
-		m.channelList = channelList
-		cmds = append(cmds, channelCmd)
+		switch m.tabs[0].state {
+		case "select":
+			channelList, channelCmd := m.channelList.Update(msg)
+			m.channelList = channelList
+			cmds = append(cmds, channelCmd)
+		case "messages":
+			messagePager, messageCommand := m.tabs[0].messagePager.Update(msg)
+			m.tabs[0].messagePager = messagePager
+			cmds = append(cmds, messageCommand)
+		}
 	case 1:
-		mpimList, mpimCmd := m.privateChannelList.Update(msg)
-		m.privateChannelList = mpimList
-		cmds = append(cmds, mpimCmd)
+		switch m.tabs[1].state {
+		case "select":
+			mpimList, mpimCmd := m.privateChannelList.Update(msg)
+			m.privateChannelList = mpimList
+			cmds = append(cmds, mpimCmd)
+		case "messages":
+			messagePager, messageCommand := m.tabs[1].messagePager.Update(msg)
+			m.tabs[1].messagePager = messagePager
+			cmds = append(cmds, messageCommand)
+		}
 	case 2:
-		imList, imCmd := m.dmList.Update(msg)
-		m.dmList = imList
-		cmds = append(cmds, imCmd)
+		switch m.tabs[1].state {
+		case "select":
+			imList, imCmd := m.dmList.Update(msg)
+			m.dmList = imList
+			cmds = append(cmds, imCmd)
+		case "messages":
+			messagePager, messageCommand := m.tabs[2].messagePager.Update(msg)
+			m.tabs[2].messagePager = messagePager
+			cmds = append(cmds, messageCommand)
+		}
 	}
 	return m, tea.Batch(cmds...)
 }
@@ -524,6 +556,17 @@ func publicChannelsView(style lipgloss.Style, m Model) string {
 		m.channelList.SetItems(items)
 
 		return style.Render(m.channelList.View())
+	case "messages":
+		// list all the messages received via the paginator
+		var b strings.Builder
+		b.WriteString("\n  Messages in " + m.channelList.SelectedItem().FilterValue() + "\n\n")
+		start, end := m.tabs[0].messagePager.GetSliceBounds(len(m.tabs[0].messages))
+		for _, message := range m.tabs[0].messages[start:end] {
+			b.WriteString("  • " + message.Text + "\n\n")
+		}
+		b.WriteString("  " + m.tabs[0].messagePager.View())
+		b.WriteString("\n\n  h/l ←/→ page\n")
+		return style.Render(b.String())
 	}
 
 	return ""
@@ -542,6 +585,17 @@ func privateChannelsView(style lipgloss.Style, m Model) string {
 		m.privateChannelList.SetItems(items)
 
 		return style.Render(m.privateChannelList.View())
+	case "messages":
+		// list all the messages received via the paginator
+		var b strings.Builder
+		b.WriteString("\n  Messages in #" + m.privateChannelList.SelectedItem().FilterValue() + "\n\n")
+		start, end := m.tabs[1].messagePager.GetSliceBounds(len(m.tabs[0].messages))
+		for _, message := range m.tabs[1].messages[start:end] {
+			b.WriteString("  • " + message.Text + "\n\n")
+		}
+		b.WriteString("  " + m.tabs[1].messagePager.View())
+		b.WriteString("\n\n  h/l ←/→ page\n")
+		return style.Render(b.String())
 	}
 
 	return ""
@@ -560,6 +614,17 @@ func directMessagesView(style lipgloss.Style, m Model) string {
 		m.dmList.SetItems(items)
 
 		return style.Render(m.dmList.View())
+	case "messages":
+		// list all the messages received via the paginator
+		var b strings.Builder
+		b.WriteString("\n  " + m.dmList.SelectedItem().FilterValue() + "\n\n")
+		start, end := m.tabs[2].messagePager.GetSliceBounds(len(m.tabs[0].messages))
+		for _, message := range m.tabs[2].messages[start:end] {
+			b.WriteString("  • " + message.Text + "\n\n")
+		}
+		b.WriteString("  " + m.tabs[2].messagePager.View())
+		b.WriteString("\n\n  h/l ←/→ page\n")
+		return style.Render(b.String())
 	}
 
 	return ""
