@@ -594,7 +594,7 @@ func privateChannelsView(style lipgloss.Style, m Model) string {
 		// list all the messages received via the paginator
 		var b strings.Builder
 		b.WriteString("\n  Messages in #" + m.privateChannelList.SelectedItem().FilterValue() + "\n\n")
-		start, end := m.tabs[1].messagePager.GetSliceBounds(len(m.tabs[0].messages))
+		start, end := m.tabs[1].messagePager.GetSliceBounds(len(m.tabs[1].messages))
 		for _, message := range m.tabs[1].messages[start:end] {
 			b.WriteString("  • " + message.Text + "\n\n")
 		}
@@ -623,7 +623,7 @@ func directMessagesView(style lipgloss.Style, m Model) string {
 		// list all the messages received via the paginator
 		var b strings.Builder
 		b.WriteString("\n  " + m.dmList.SelectedItem().FilterValue() + "\n\n")
-		start, end := m.tabs[2].messagePager.GetSliceBounds(len(m.tabs[0].messages))
+		start, end := m.tabs[2].messagePager.GetSliceBounds(len(m.tabs[2].messages))
 		for _, message := range m.tabs[2].messages[start:end] {
 			b.WriteString("  • " + message.Text + "\n\n")
 		}
