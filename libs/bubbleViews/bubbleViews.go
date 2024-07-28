@@ -10,7 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/paginator"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
@@ -42,7 +42,7 @@ type tab struct {
 	content      func(lipgloss.Style, Model) string
 	messages     []slack.Message
 	state        string
-	messagePager paginator.Model
+	messagePager viewport.Model
 }
 
 type Model struct {
@@ -169,6 +169,11 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 		dmL := l
 		dmL.Title = "DMs"
 
+		p := viewport.New(pty.Window.Width-4, pty.Window.Height-6)
+		p.Style = p.Style.Border(lipgloss.RoundedBorder()).
+			BorderTop(false).BorderForeground(lipgloss.Color("#7D56F3")).
+			PaddingTop(0).PaddingLeft(2).PaddingRight(2)
+
 		m := Model{
 			term:               pty.Term,
 			width:              pty.Window.Width,
@@ -179,7 +184,7 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			user:               s.User(),
 			publicKey:          s.PublicKey(),
 			page:               page,
-			tabs:               []tab{{"Public Channels", publicChannelsView, []slack.Message{}, "select", paginator.New()}, {"Private Channels", privateChannelsView, []slack.Message{}, "select", paginator.New()}, {"DMs", directMessagesView, []slack.Message{}, "select", paginator.New()}, {"Search", searchView, []slack.Message{}, "select", paginator.New()}},
+			tabs:               []tab{{"Public Channels", publicChannelsView, []slack.Message{}, "select", p}, {"Private Channels", privateChannelsView, []slack.Message{}, "select", p}, {"DMs", directMessagesView, []slack.Message{}, "select", p}, {"Search", searchView, []slack.Message{}, "select", p}},
 			channelList:        l,
 			privateChannelList: privateChannelL,
 			dmList:             dmL,
@@ -237,35 +242,33 @@ func getDms(slackClient *slack.Client) tea.Cmd {
 
 		items := []list.Item{}
 		for _, dm := range dms {
-			name := ""
-			if dm.NameNormalized == "" {
-				// get the user's display name
-				identity, err := slackClient.GetUserInfo(dm.User)
-				if err != nil {
-					log.Error("error getting dm name", "err", err)
-					// wait 2 seconds before trying again
-					time.Sleep(2 * time.Second)
-					identity, err = slackClient.GetUserInfo(dm.User)
-					if err != nil {
-						log.Error("error getting dm name", "err", err)
-						continue
-					}
-				}
+			// name := "unknown"
+			// if dm.NameNormalized == "" {
+			// 	// get the user's display name
+			// 	identity, err := slackClient.GetUserInfo(dm.User)
+			// 	if err != nil {
+			// 		log.Error("error getting dm name", "err", err)
+			// 		// wait 2 seconds before trying again
+			// 		time.Sleep(2 * time.Second)
+			// 		identity, err = slackClient.GetUserInfo(dm.User)
+			// 		if err != nil {
+			// 			log.Error("error getting dm name", "err", err)
+			// 			continue
+			// 		}
+			// 	}
 
-				if identity.Profile.DisplayName != "" {
-					name = identity.Profile.DisplayName
-				} else {
-					if identity.Profile.RealName != "" {
-						name = identity.Profile.RealName
-					} else {
-						name = "unknown"
-					}
-				}
-			} else {
-				name = "unknown"
-			}
+			// 	if identity.Profile.DisplayName != "" {
+			// 		name = identity.Profile.DisplayName
+			// 	} else {
+			// 		if identity.Profile.RealName != "" {
+			// 			name = identity.Profile.RealName
+			// 		} else {
+			// 			name = "unknown"
+			// 		}
+			// 	}
+			// }
 
-			items = append(items, item(name))
+			items = append(items, item(dm.Name))
 		}
 
 		log.Info("got dms", "#dm", len(items))
@@ -384,7 +387,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.dmList.SetItems(msg.items)
 	case tabMessageUpdate:
 		m.tabs[msg.tab].messages = msg.messages
-		m.tabs[msg.tab].messagePager.SetTotalPages(len(msg.messages))
+		// message content
+		var b strings.Builder
+		for _, message := range msg.messages {
+			b.WriteString("---\n\n" + highlightedStyle.Render(message.Username) + " - " + message.Text + "\n\n---\n\n")
+		}
+		m.tabs[msg.tab].messagePager.SetContent(b.String())
 	}
 
 	// check which tab the user is on
@@ -565,16 +573,7 @@ func publicChannelsView(style lipgloss.Style, m Model) string {
 
 		return style.Render(m.channelList.View())
 	case "messages":
-		// list all the messages received via the paginator
-		var b strings.Builder
-		b.WriteString("\n  Messages in " + m.channelList.SelectedItem().FilterValue() + "\n\n")
-		start, end := m.tabs[0].messagePager.GetSliceBounds(len(m.tabs[0].messages))
-		for _, message := range m.tabs[0].messages[start:end] {
-			b.WriteString(highlightedStyle.Render(message.User) + " - " + message.Text + "\n\n")
-		}
-		b.WriteString("  " + m.tabs[0].messagePager.View())
-		b.WriteString("\n\n  h/l ←/→ page\n")
-		return style.Render(b.String())
+		return m.tabs[0].messagePager.View()
 	}
 
 	return ""
@@ -597,13 +596,10 @@ func privateChannelsView(style lipgloss.Style, m Model) string {
 		// list all the messages received via the paginator
 		var b strings.Builder
 		b.WriteString("\n  Messages in #" + m.privateChannelList.SelectedItem().FilterValue() + "\n\n")
-		start, end := m.tabs[1].messagePager.GetSliceBounds(len(m.tabs[1].messages))
-		for _, message := range m.tabs[1].messages[start:end] {
-			b.WriteString(highlightedStyle.Render(message.Username) + " - " + message.Text + "\n\n")
-		}
-		b.WriteString("  " + m.tabs[1].messagePager.View())
-		b.WriteString("\n\n  h/l ←/→ page\n")
-		return style.Render(b.String())
+
+		m.tabs[1].messagePager.Height = style.GetHeight() - 8
+
+		return style.Render(b.String(), m.tabs[1].messagePager.View())
 	}
 
 	return ""
@@ -626,13 +622,10 @@ func directMessagesView(style lipgloss.Style, m Model) string {
 		// list all the messages received via the paginator
 		var b strings.Builder
 		b.WriteString("\n  " + m.dmList.SelectedItem().FilterValue() + "\n\n")
-		start, end := m.tabs[2].messagePager.GetSliceBounds(len(m.tabs[2].messages))
-		for _, message := range m.tabs[2].messages[start:end] {
-			b.WriteString(highlightedStyle.Render(message.Username) + " - " + message.Text + "\n\n")
-		}
-		b.WriteString("  " + m.tabs[2].messagePager.View())
-		b.WriteString("\n\n  h/l ←/→ page\n")
-		return style.Render(b.String())
+
+		m.tabs[2].messagePager.Height = 8
+
+		return style.Render(b.String(), m.tabs[0].messagePager.View())
 	}
 
 	return ""
@@ -658,7 +651,7 @@ func tabBorderWithBottom(left, middle, right string, noTop bool) lipgloss.Border
 }
 
 var (
-	docStyle         = lipgloss.NewStyle().Padding(1, 2, 1, 2)
+	docStyle         = lipgloss.NewStyle().Padding(0, 2, 1, 2)
 	highlightColor   = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}
 	inactiveTabStyle = lipgloss.NewStyle().Border(tabBorderWithBottom("┴", "─", "┴", false), true).BorderForeground(highlightColor).Padding(0, 1)
 	activeTabStyle   = inactiveTabStyle.Copy().Border(tabBorderWithBottom("┘", " ", "└", false), true)
