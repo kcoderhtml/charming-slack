@@ -34,6 +34,9 @@ var style = lipgloss.NewStyle().
 	PaddingRight(2).
 	Border(lipgloss.RoundedBorder())
 
+var highlightedStyle = lipgloss.NewStyle().
+	Bold(true).Foreground(lipgloss.Color("#4e2ed1"))
+
 type tab struct {
 	title        string
 	content      func(lipgloss.Style, Model) string
@@ -409,7 +412,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, messageCommand)
 		}
 	case 2:
-		switch m.tabs[1].state {
+		switch m.tabs[2].state {
 		case "select":
 			imList, imCmd := m.dmList.Update(msg)
 			m.dmList = imList
@@ -567,7 +570,7 @@ func publicChannelsView(style lipgloss.Style, m Model) string {
 		b.WriteString("\n  Messages in " + m.channelList.SelectedItem().FilterValue() + "\n\n")
 		start, end := m.tabs[0].messagePager.GetSliceBounds(len(m.tabs[0].messages))
 		for _, message := range m.tabs[0].messages[start:end] {
-			b.WriteString("  • " + message.Text + "\n\n")
+			b.WriteString(highlightedStyle.Render(message.User) + " - " + message.Text + "\n\n")
 		}
 		b.WriteString("  " + m.tabs[0].messagePager.View())
 		b.WriteString("\n\n  h/l ←/→ page\n")
@@ -596,7 +599,7 @@ func privateChannelsView(style lipgloss.Style, m Model) string {
 		b.WriteString("\n  Messages in #" + m.privateChannelList.SelectedItem().FilterValue() + "\n\n")
 		start, end := m.tabs[1].messagePager.GetSliceBounds(len(m.tabs[1].messages))
 		for _, message := range m.tabs[1].messages[start:end] {
-			b.WriteString("  • " + message.Text + "\n\n")
+			b.WriteString(highlightedStyle.Render(message.Username) + " - " + message.Text + "\n\n")
 		}
 		b.WriteString("  " + m.tabs[1].messagePager.View())
 		b.WriteString("\n\n  h/l ←/→ page\n")
@@ -625,7 +628,7 @@ func directMessagesView(style lipgloss.Style, m Model) string {
 		b.WriteString("\n  " + m.dmList.SelectedItem().FilterValue() + "\n\n")
 		start, end := m.tabs[2].messagePager.GetSliceBounds(len(m.tabs[2].messages))
 		for _, message := range m.tabs[2].messages[start:end] {
-			b.WriteString("  • " + message.Text + "\n\n")
+			b.WriteString(highlightedStyle.Render(message.Username) + " - " + message.Text + "\n\n")
 		}
 		b.WriteString("  " + m.tabs[2].messagePager.View())
 		b.WriteString("\n\n  h/l ←/→ page\n")
