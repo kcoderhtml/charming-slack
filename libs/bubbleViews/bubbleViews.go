@@ -21,6 +21,7 @@ import (
 
 	"charming-slack/libs/database"
 	"charming-slack/libs/keymaps"
+	"charming-slack/libs/utils"
 )
 
 var style = lipgloss.NewStyle().
@@ -41,8 +42,9 @@ type Model struct {
 	help        help.Model
 	page        string
 	tabs        []string
-	tabContent  []func(lipgloss.Style) string
+	tabContent  []func(lipgloss.Style, Model) string
 	channelList list.Model
+	channels    []slack.Channel
 	user        string
 	publicKey   ssh.PublicKey
 	activeTab   int
@@ -134,7 +136,11 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			log.Info("new user")
 		}
 
-		channels := []list.Item{}
+		channels := []list.Item{
+			item("test"),
+			item("test2"),
+			item("test3"),
+		}
 		l := list.New(channels, itemDelegate{}, 24, 14)
 		l.Title = "Public Channels"
 		l.SetShowStatusBar(false)
@@ -160,11 +166,11 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			slackClient: slack.New(database.Users[s.User()].SlackToken),
 		}
 
-		m.tabContent = []func(style lipgloss.Style) string{
-			m.publicChannelsView,
-			m.privateChannelsView,
-			m.directMessagesView,
-			m.searchView,
+		m.tabContent = []func(style lipgloss.Style, m Model) string{
+			publicChannelsView,
+			privateChannelsView,
+			directMessagesView,
+			searchView,
 		}
 
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
@@ -173,14 +179,6 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 }
 
 type channelUpdateMessage struct{ channels []slack.Channel }
-
-func (s channelUpdateMessage) GetItems() []list.Item {
-	items := []list.Item{}
-	for _, channel := range s.channels {
-		items = append(items, item(channel.Name))
-	}
-	return items
-}
 
 type errMsg struct{ err error }
 
@@ -248,7 +246,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case channelUpdateMessage:
-		m.channelList.SetItems(msg.GetItems())
+		m.channels = msg.channels
+		items := []list.Item{}
+		for _, channel := range m.channels {
+			items = append(items, item(utils.ClampString(channel.Name, m.channelList.Width()-4)))
+		}
+		m.channelList.SetItems(items)
+	case errMsg:
+		log.Error(msg.Error())
 	}
 
 	var cmd tea.Cmd
@@ -267,7 +272,7 @@ func (m Model) View() string {
 	case "home":
 		content = m.HomeView(fittedStyle)
 	case "slack":
-		content = m.SlackView(fittedStyle)
+		content = SlackView(fittedStyle, m)
 	case "auth":
 		content = m.AuthView(fittedStyle)
 	case "slackOnboarding":
@@ -287,7 +292,7 @@ func (m Model) HomeView(fittedStyle lipgloss.Style) string {
 	return content
 }
 
-func (m Model) SlackView(fittedStyle lipgloss.Style) string {
+func SlackView(fittedStyle lipgloss.Style, m Model) string {
 	doc := strings.Builder{}
 
 	var renderedTabs []string
@@ -351,7 +356,7 @@ func (m Model) SlackView(fittedStyle lipgloss.Style) string {
 		Width(m.width - 6).
 		Height(m.height - lipgloss.Height(row) - 3)
 
-	doc.WriteString(m.tabContent[m.activeTab](windowStyle))
+	doc.WriteString(m.tabContent[m.activeTab](windowStyle, m))
 	return docStyle.Render(doc.String())
 }
 
@@ -381,20 +386,20 @@ func (m Model) SlackOnboardingView(fittedStyle lipgloss.Style) string {
 	return content
 }
 
-func (m Model) publicChannelsView(style lipgloss.Style) string {
+func publicChannelsView(style lipgloss.Style, m Model) string {
 	m.channelList.SetHeight(style.GetHeight() - 4)
 	return style.Render(m.channelList.View())
 }
 
-func (m Model) privateChannelsView(style lipgloss.Style) string {
+func privateChannelsView(style lipgloss.Style, m Model) string {
 	return style.Render("private channels")
 }
 
-func (m Model) directMessagesView(style lipgloss.Style) string {
+func directMessagesView(style lipgloss.Style, m Model) string {
 	return style.Render("direct messages")
 }
 
-func (m Model) searchView(style lipgloss.Style) string {
+func searchView(style lipgloss.Style, m Model) string {
 	return style.Render("search")
 }
 
