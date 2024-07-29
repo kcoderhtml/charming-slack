@@ -112,7 +112,7 @@ func SaveUserData() {
 	// save the database to a file, if it doesn't exist, create it
 	jsonData, err := json.Marshal(DB)
 	SlackMapMutex.Unlock()
-	SlackMapMutex.Unlock()
+	ApplicationDataMutex.Unlock()
 	if err != nil {
 		log.Error("Could not marshal users data to JSON", "error", err)
 		return
