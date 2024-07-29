@@ -53,34 +53,40 @@ func AddSlackUser(userid string, realName string, displayName string) {
 }
 
 func GetUserOrCreate(userid string, slackClient slack.Client) SlackUserMap {
-	// check if the user exists in the map first
-	user, ok := DB.SlackMap[userid]
+	if userid != "" {
+		// check if the user exists in the map first
+		user, ok := DB.SlackMap[userid]
 
-	if !ok {
-		identity, err := slackClient.GetUserInfo(userid)
-		if err != nil {
-			log.Error("error getting dm name", "err", err)
-			// wait 2 seconds before trying again
-			time.Sleep(4 * time.Second)
-			identity, err = slackClient.GetUserInfo(userid)
+		if !ok {
+			identity, err := slackClient.GetUserInfo(userid)
 			if err != nil {
 				log.Error("error getting dm name", "err", err)
-				return SlackUserMap{
-					RealName:    "unknown",
-					DisplayName: "unknown",
+				// wait 2 seconds before trying again
+				time.Sleep(4 * time.Second)
+				identity, err = slackClient.GetUserInfo(userid)
+				if err != nil {
+					log.Error("error getting dm name", "err", err)
+					return SlackUserMap{
+						RealName:    "unknown",
+						DisplayName: "unknown",
+					}
 				}
+			}
+
+			user = SlackUserMap{
+				RealName:    identity.Profile.RealNameNormalized,
+				DisplayName: identity.Profile.DisplayNameNormalized,
 			}
 		}
 
-		user = SlackUserMap{
-			RealName:    identity.Profile.RealNameNormalized,
-			DisplayName: identity.Profile.DisplayNameNormalized,
-		}
+		DB.SlackMap[userid] = user
+		return user
 	}
 
-	DB.SlackMap[userid] = user
-
-	return user
+	return SlackUserMap{
+		RealName:    "unknown",
+		DisplayName: "unknown",
+	}
 }
 
 func SaveUserData() {
