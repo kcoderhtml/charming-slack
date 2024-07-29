@@ -248,12 +248,22 @@ func getDms(slackClient *slack.Client) tea.Cmd {
 			if dm.IsIM {
 				// get the user's display name
 				user := database.GetUserOrCreate(dm.User, *slackClient)
-				name = user.DisplayName
+				if user.DisplayName == "" {
+					name = highlightedStyleBot.Render("@" + user.RealName + " (bot)")
+				} else {
+					name += highlightedStyle.Render("@" + user.DisplayName)
+				}
 			} else {
 				// get each participent in the conversation
 				for _, member := range dm.Members {
+					displayName := ""
 					user := database.GetUserOrCreate(member, *slackClient)
-					name = name + user.DisplayName + " "
+					if user.DisplayName == "" {
+						displayName = highlightedStyleBot.Render("@" + user.RealName + " (bot)")
+					} else {
+						displayName += highlightedStyle.Render("@" + user.DisplayName)
+					}
+					name = name + displayName + " "
 				}
 			}
 
