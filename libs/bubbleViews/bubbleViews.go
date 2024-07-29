@@ -125,11 +125,11 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 
 		page := "auth"
 
-		if _, ok := database.Users[s.User()]; ok {
+		if _, ok := database.DB.ApplicationData[s.User()]; ok {
 			log.Info("existing user")
 			// check the key is the one we expect
 			if s.PublicKey() != nil {
-				for user, userData := range database.Users {
+				for user, userData := range database.DB.ApplicationData {
 					parsed, _, _, _, _ := ssh.ParseAuthorizedKey(
 						[]byte(userData.PublicKey),
 					)
@@ -189,7 +189,7 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			privateChannelList: privateChannelL,
 			dmList:             dmL,
 			activeTab:          0,
-			slackClient:        slack.New(database.Users[s.User()].SlackToken),
+			slackClient:        slack.New(database.DB.ApplicationData[s.User()].SlackToken),
 		}
 
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
@@ -322,7 +322,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// add the user and their public key to the map
 				// parse the public key
 				parsed := m.publicKey.Type() + " " + base64.StdEncoding.EncodeToString(m.publicKey.Marshal())
-				database.Users[m.user] = database.UserData{
+				database.DB.ApplicationData[m.user] = database.UserData{
 					PublicKey: string(parsed),
 				}
 				log.Info("added user", "user", m.user, "with public key", parsed[:20])
@@ -330,8 +330,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case m.page == "slackOnboarding":
 				// check if the user has a slack token
 				// if they do, redirect to home
-				if database.Users[m.user].SlackToken != "" {
-					m.slackClient = slack.New(database.Users[m.user].SlackToken)
+				if database.DB.ApplicationData[m.user].SlackToken != "" {
+					m.slackClient = slack.New(database.DB.ApplicationData[m.user].SlackToken)
 					m.page = "home"
 				}
 			case m.page == "home":
@@ -460,7 +460,7 @@ func (m Model) View() string {
 func (m Model) HomeView(fittedStyle lipgloss.Style) string {
 	content := fittedStyle.
 		Align(lipgloss.Center, lipgloss.Center).
-		Render("ello world!!!" + "\n\n" + database.Users[m.user].RealName + " welcome to charming slack! :)")
+		Render("ello world!!!" + "\n\n" + database.DB.ApplicationData[m.user].RealName + " welcome to charming slack! :)")
 
 	return content
 }

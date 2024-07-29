@@ -8,8 +8,9 @@ import (
 )
 
 // a variable holding all the users and their public keys and slack tokens and refresh token and real name
-var Users = map[string]UserData{
-	// You can add add your name and public key here :)
+var DB = Database{
+	ApplicationData: map[string]UserData{},
+	SlackMap:        map[string]SlackUserMap{},
 }
 
 type UserData struct {
@@ -19,18 +20,38 @@ type UserData struct {
 	RealName     string
 }
 
+type SlackUserMap struct {
+	RealName    string
+	DisplayName string
+}
+
+type Database struct {
+	ApplicationData map[string]UserData
+	SlackMap        map[string]SlackUserMap
+}
+
 func SetUserData(user string, slackToken string, refreshToken string, realName string) {
-	Users[user] = UserData{
-		PublicKey:    Users[user].PublicKey,
+	DB.ApplicationData[user] = UserData{
 		SlackToken:   slackToken,
 		RefreshToken: refreshToken,
 		RealName:     realName,
 	}
 }
 
+func QuerySlackUserID(userid string) SlackUserMap {
+	return DB.SlackMap[userid]
+}
+
+func AddSlackUser(userid string, realName string, displayName string) {
+	DB.SlackMap[userid] = SlackUserMap{
+		RealName:    realName,
+		DisplayName: displayName,
+	}
+}
+
 func SaveUserData() {
 	// save the database to a file, if it doesn't exist, create it
-	jsonData, err := json.Marshal(Users)
+	jsonData, err := json.Marshal(DB)
 	if err != nil {
 		log.Error("Could not marshal users data to JSON", "error", err)
 		return
@@ -50,7 +71,7 @@ func LoadUserData() {
 		return
 	}
 
-	err = json.Unmarshal(jsonData, &Users)
+	err = json.Unmarshal(jsonData, &DB)
 	if err != nil {
 		log.Error("Could not unmarshal users data from JSON", "error", err)
 		return
