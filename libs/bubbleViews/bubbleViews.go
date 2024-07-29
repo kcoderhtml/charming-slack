@@ -243,28 +243,15 @@ func getDms(slackClient *slack.Client) tea.Cmd {
 		items := []list.Item{}
 		for _, dm := range dms {
 			name := "unknown"
-			if dm.NameNormalized == "" {
+			if dm.IsIM {
 				// get the user's display name
-				identity, err := slackClient.GetUserInfo(dm.User)
-				if err != nil {
-					log.Error("error getting dm name", "err", err)
-					// wait 2 seconds before trying again
-					time.Sleep(2 * time.Second)
-					identity, err = slackClient.GetUserInfo(dm.User)
-					if err != nil {
-						log.Error("error getting dm name", "err", err)
-						continue
-					}
-				}
-
-				if identity.Profile.DisplayName != "" {
-					name = identity.Profile.DisplayName
-				} else {
-					if identity.Profile.RealName != "" {
-						name = identity.Profile.RealName
-					} else {
-						name = "unknown"
-					}
+				user := database.GetUserOrCreate(dm.User, *slackClient)
+				name = user.DisplayName
+			} else {
+				// get each participent in the conversation
+				for _, member := range dm.Members {
+					user := database.GetUserOrCreate(member, *slackClient)
+					name = name + user.DisplayName + " "
 				}
 			}
 
