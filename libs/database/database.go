@@ -3,6 +3,7 @@ package database
 import (
 	"encoding/json"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -14,6 +15,11 @@ var DB = Database{
 	ApplicationData: map[string]UserData{},
 	SlackMap:        map[string]SlackUserMap{},
 }
+
+var (
+	SlackMapMutex        = sync.RWMutex{}
+	ApplicationDataMutex = sync.RWMutex{}
+)
 
 type UserData struct {
 	PublicKey    string
@@ -33,29 +39,38 @@ type Database struct {
 }
 
 func SetUserData(user string, slackToken string, refreshToken string, realName string) {
+	ApplicationDataMutex.Lock()
 	DB.ApplicationData[user] = UserData{
 		PublicKey:    DB.ApplicationData[user].PublicKey,
 		SlackToken:   slackToken,
 		RefreshToken: refreshToken,
 		RealName:     realName,
 	}
+	ApplicationDataMutex.Unlock()
 }
 
 func QuerySlackUserID(userid string) SlackUserMap {
-	return DB.SlackMap[userid]
+	SlackMapMutex.Lock()
+	user := DB.SlackMap[userid]
+	SlackMapMutex.Unlock()
+	return user
 }
 
 func AddSlackUser(userid string, realName string, displayName string) {
+	SlackMapMutex.Lock()
 	DB.SlackMap[userid] = SlackUserMap{
 		RealName:    realName,
 		DisplayName: displayName,
 	}
+	SlackMapMutex.Unlock()
 }
 
 func GetUserOrCreate(userid string, slackClient slack.Client) SlackUserMap {
 	if userid != "" {
+		SlackMapMutex.Lock()
 		// check if the user exists in the map first
 		user, ok := DB.SlackMap[userid]
+		SlackMapMutex.Unlock()
 
 		if !ok {
 			identity, err := slackClient.GetUserInfo(userid)
@@ -79,7 +94,9 @@ func GetUserOrCreate(userid string, slackClient slack.Client) SlackUserMap {
 			}
 		}
 
+		SlackMapMutex.Lock()
 		DB.SlackMap[userid] = user
+		SlackMapMutex.Unlock()
 		return user
 	}
 
@@ -90,8 +107,12 @@ func GetUserOrCreate(userid string, slackClient slack.Client) SlackUserMap {
 }
 
 func SaveUserData() {
+	SlackMapMutex.Lock()
+	ApplicationDataMutex.Lock()
 	// save the database to a file, if it doesn't exist, create it
 	jsonData, err := json.Marshal(DB)
+	SlackMapMutex.Unlock()
+	SlackMapMutex.Unlock()
 	if err != nil {
 		log.Error("Could not marshal users data to JSON", "error", err)
 		return
@@ -111,7 +132,14 @@ func LoadUserData() {
 		return
 	}
 
+	SlackMapMutex.Lock()
+	ApplicationDataMutex.Lock()
+
 	err = json.Unmarshal(jsonData, &DB)
+
+	SlackMapMutex.Unlock()
+	ApplicationDataMutex.Unlock()
+
 	if err != nil {
 		log.Error("Could not unmarshal users data from JSON", "error", err)
 		return
