@@ -337,6 +337,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case m.page == "home":
 				// redirect to slack page
 				m.page = "slack"
+				cmds = append(cmds, getChannels(m.slackClient))
+				cmds = append(cmds, getPrivateChannels(m.slackClient))
+				cmds = append(cmds, getDms(m.slackClient))
 			case m.page == "slack":
 				// check what page we are on
 				switch m.activeTab {
