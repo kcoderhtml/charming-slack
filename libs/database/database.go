@@ -32,6 +32,7 @@ type Database struct {
 
 func SetUserData(user string, slackToken string, refreshToken string, realName string) {
 	DB.ApplicationData[user] = UserData{
+		PublicKey:    DB.ApplicationData[user].PublicKey,
 		SlackToken:   slackToken,
 		RefreshToken: refreshToken,
 		RealName:     realName,
