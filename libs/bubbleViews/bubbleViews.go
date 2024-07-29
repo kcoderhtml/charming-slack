@@ -36,6 +36,8 @@ var style = lipgloss.NewStyle().
 
 var highlightedStyle = lipgloss.NewStyle().
 	Bold(true).Foreground(lipgloss.Color("#866bef"))
+var highlightedStyleBot = highlightedStyle.Copy().
+	Foreground(lipgloss.Color("#b45fd8"))
 
 type tab struct {
 	title        string
@@ -380,7 +382,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// message content
 		var b strings.Builder
 		for _, message := range msg.messages {
-			b.WriteString("---\n\n" + highlightedStyle.Render(database.GetUserOrCreate(message.User, *m.slackClient).DisplayName) + " - " + message.Text + "\n\n---\n\n")
+			creatorDisplayName := ""
+			user := database.GetUserOrCreate(message.User, *m.slackClient)
+			if user.DisplayName == "" {
+				creatorDisplayName = highlightedStyleBot.Render("@" + user.RealName + " (bot)")
+			} else {
+				creatorDisplayName += highlightedStyle.Render("@" + user.DisplayName)
+			}
+			messageString := "---\n\n" + creatorDisplayName + " - " + message.Text + "\n\n---\n\n"
+			b.WriteString(utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient))
 		}
 		m.tabs[msg.tab].messagePager.SetContent(b.String())
 	}
