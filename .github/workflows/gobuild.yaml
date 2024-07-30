@@ -4,7 +4,7 @@ on:
       - "v*.*.*"
 permissions:
   contents: write
-name: Expo Build
+name: Go Build
 jobs:
   build:
     runs-on: ubuntu-latest
