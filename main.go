@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	host = "localhost"
+	host = "0.0.0.0"
 )
 
 func main() {
@@ -69,7 +69,7 @@ func main() {
 		}
 	}()
 
-	log.Info("Starting HTTP server", "host", "localhost", "port", os.Getenv("HTTP_PORT"))
+	log.Info("Starting HTTP server", "host", host, "port", os.Getenv("HTTP_PORT"))
 	go func() {
 		if err = http.ListenAndServe(":"+os.Getenv("HTTP_PORT"), nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Error("Could not start HTTP server", "error", err)
