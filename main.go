@@ -42,7 +42,9 @@ func main() {
 		httpHandlers.SlackInstallHandler(w, r, database.SetUserData)
 	})
 	http.HandleFunc("/install", httpHandlers.RedirectToSlackInstallHandler)
-	http.HandleFunc("/", httpHandlers.HelloWorldHandler)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "https://github.com/kcoderhtml/charming-slack", http.StatusFound)
+	})
 
 	s, err := wish.NewServer(
 		wish.WithAddress(net.JoinHostPort(host, os.Getenv("SSH_PORT"))),
