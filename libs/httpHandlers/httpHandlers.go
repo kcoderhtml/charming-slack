@@ -43,7 +43,7 @@ func SlackInstallHandler(w http.ResponseWriter, r *http.Request, setUserData fun
 	// get token from slack
 	token, err := slack.GetOAuthV2Response(client, slackClientID, slackClientSecret, code, os.Getenv("REDIRECT_URL")+"/slack/install")
 	if err != nil {
-		http.Error(w, "could not get token from slack", http.StatusInternalServerError)
+		http.Error(w, "could not get token from slack: "+err.Error(), http.StatusInternalServerError)
 		log.Error("could not get token from slack", "error", err)
 		return
 	}
