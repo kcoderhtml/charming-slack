@@ -27,7 +27,6 @@ import (
 
 const (
 	host = "localhost"
-	port = "23234"
 )
 
 func main() {
@@ -46,7 +45,7 @@ func main() {
 	http.HandleFunc("/", httpHandlers.HelloWorldHandler)
 
 	s, err := wish.NewServer(
-		wish.WithAddress(net.JoinHostPort(host, port)),
+		wish.WithAddress(net.JoinHostPort(host, os.Getenv("SSH_PORT"))),
 		wish.WithHostKeyPath(".ssh/id_ed25519"),
 		wish.WithPublicKeyAuth(func(_ ssh.Context, key ssh.PublicKey) bool {
 			return true
@@ -62,7 +61,7 @@ func main() {
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	log.Info("Starting SSH server", "host", host, "port", port)
+	log.Info("Starting SSH server", "host", host, "port", os.Getenv("SSH_PORT"))
 	go func() {
 		if err = s.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
 			log.Error("Could not start server", "error", err)
@@ -70,9 +69,9 @@ func main() {
 		}
 	}()
 
-	log.Info("Starting HTTP server", "host", "localhost", "port", "23233")
+	log.Info("Starting HTTP server", "host", "localhost", "port", os.Getenv("HTTP_PORT"))
 	go func() {
-		if err = http.ListenAndServe(":23233", nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err = http.ListenAndServe(":"+os.Getenv("HTTP_PORT"), nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Error("Could not start HTTP server", "error", err)
 			done <- nil
 		}
