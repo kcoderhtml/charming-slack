@@ -8,6 +8,9 @@ You need these variables available
 ```bash
 SLACK_CLIENT_ID="xxxxx.xxxxxx"
 SLACK_CLIENT_SECRET="xxxxxxxxxxxxxxxxx"
+REDIRECT_URL="http://localhost:23233"
+SSH_PORT="23234"
+HTTP_PORT="23233"
 ```
 You also need a slack app
 ```yaml
