@@ -1,0 +1,29 @@
+on:
+  push:
+    tags:
+      - "v*.*.*"
+permissions:
+  contents: write
+name: Expo Build
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21.x'
+      - name: 🏗 Install dependencies
+        run: go get .
+      - name: Build
+        run: 🚀 go build
+      - name: 📦 Publish build to releases
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./charming-slack
+          asset_name: "charming-slack"
+          tag: ${{ github.ref }}
+          overwrite: true
