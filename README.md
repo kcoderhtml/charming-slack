@@ -2,6 +2,11 @@
 
 An effort to charm slack into submission to the great ssh gardeners.
 
+Try it rn!
+```bash
+ssh nest.hackclub.app -p 23234
+```
+
 ## Setup
 
 You need these variables available
