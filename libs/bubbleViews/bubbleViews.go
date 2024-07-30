@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -562,7 +563,7 @@ func (m Model) SlackOnboardingView(fittedStyle lipgloss.Style) string {
 		Align(lipgloss.Center, lipgloss.Center).
 		Render("Click the link below to oauth your slack account with CS!" +
 			"\n\n" +
-			"http://localhost:23233/install?state=" + m.user)
+			os.Getenv("REDIRECT_URL") + "/install?state=" + m.user)
 
 	return content
 }
