@@ -2,6 +2,7 @@ package httpHandlers
 
 import (
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/charmbracelet/log"
@@ -40,7 +41,7 @@ func SlackInstallHandler(w http.ResponseWriter, r *http.Request, setUserData fun
 	client := &http.Client{}
 
 	// get token from slack
-	token, err := slack.GetOAuthV2Response(client, slackClientID, slackClientSecret, code, "http://localhost:23233/slack/install")
+	token, err := slack.GetOAuthV2Response(client, slackClientID, slackClientSecret, code, os.Getenv("REDIRECT_URL")+"/slack/install")
 	if err != nil {
 		http.Error(w, "could not get token from slack", http.StatusInternalServerError)
 		log.Error("could not get token from slack", "error", err)
@@ -70,5 +71,5 @@ func RedirectToSlackInstallHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	slackClientID := os.Getenv("SLACK_CLIENT_ID")
 	log.Info("redirecting to slack install page", "slackClientID", slackClientID)
-	http.Redirect(w, r, "https://slack.com/oauth/v2/authorize?scope=&user_scope=channels%3Aread%2Cchannels%3Awrite%2Cchannels%3Ahistory%2Cgroups%3Ahistory%2Cgroups%3Aread%2Cgroups%3Awrite%2Cmpim%3Ahistory%2Cmpim%3Aread%2Cmpim%3Awrite%2Cim%3Ahistory%2Cim%3Aread%2Cim%3Awrite%2Cidentify%2Cchat%3Awrite%2Cusers.profile%3Aread%2Cusers%3Aread&redirect_uri=http%3A%2F%2Flocalhost%3A23233%2Fslack%2Finstall&client_id="+slackClientID+"&state="+state, http.StatusFound)
+	http.Redirect(w, r, "https://slack.com/oauth/v2/authorize?scope=&user_scope=channels%3Aread%2Cchannels%3Awrite%2Cchannels%3Ahistory%2Cgroups%3Ahistory%2Cgroups%3Aread%2Cgroups%3Awrite%2Cmpim%3Ahistory%2Cmpim%3Aread%2Cmpim%3Awrite%2Cim%3Ahistory%2Cim%3Aread%2Cim%3Awrite%2Cidentify%2Cchat%3Awrite%2Cusers.profile%3Aread%2Cusers%3Aread&redirect_uri="+url.QueryEscape(os.Getenv("REDIRECT_URL")+"/slack/install")+"&client_id="+slackClientID+"&state="+state, http.StatusFound)
 }
