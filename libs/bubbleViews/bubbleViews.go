@@ -520,10 +520,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, messageCommand)
 		}
 	case 3:
-		if m.tabs[m.activeTab].state == "select" {
+		switch m.tabs[3].state {
+		case "select":
 			searchInput, cmd := m.searchInput.Update(msg)
 			m.searchInput = searchInput
 			cmds = append(cmds, cmd)
+		case "view":
+			messagePager, messageCommand := m.tabs[3].messagePager.Update(msg)
+			m.tabs[3].messagePager = messagePager
+			cmds = append(cmds, messageCommand)
 		}
 	}
 	return m, tea.Batch(cmds...)
