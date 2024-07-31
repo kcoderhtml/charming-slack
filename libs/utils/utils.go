@@ -50,5 +50,13 @@ func UserIdParser(s string, highlightedStyle lipgloss.Style, highlightedStyleBot
 		return channelStyle.Render("#" + channel)
 	})
 
-	return result2
+	urlRe := regexp.MustCompile(`<(https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))[|]?([^>]*)>`)
+	result3 := urlRe.ReplaceAllStringFunc(result2, func(match string) string {
+		// extract the user ID from the match
+		submatch := urlRe.FindStringSubmatch(match)
+
+		return channelStyle.Render("[" + submatch[1] + "]" + "(" + submatch[4] + ")")
+	})
+
+	return result3
 }
