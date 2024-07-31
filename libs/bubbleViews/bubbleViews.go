@@ -456,10 +456,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				creatorDisplayName += highlightedStyle.Render("@" + user.DisplayName)
 			}
-			messageString := creatorDisplayName + mutedStyle.Render("\n---\n")
+			messageString := mutedStyle.Render("\n  ---\n") + "  " + creatorDisplayName + mutedStyle.Render("\n  ---\n")
 
 			glamR, _ := glamour.NewTermRenderer(
-				// wrap output at specific width (default is 80)
 				glamour.WithWordWrap(m.width-18),
 				glamour.WithStylePath("styles/overgrown.json"),
 				glamour.WithPreservedNewLines(),
