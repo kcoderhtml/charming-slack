@@ -44,6 +44,9 @@ var highlightedStyle = lipgloss.NewStyle().
 var highlightedStyleBot = highlightedStyle.Copy().
 	Foreground(lipgloss.Color("#b45fd8"))
 
+var messageStyle = lipgloss.NewStyle().
+	Border(lipgloss.NormalBorder()).PaddingLeft(1).PaddingRight(1)
+
 type tab struct {
 	title          string
 	content        func(lipgloss.Style, Model) string
@@ -437,7 +440,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				creatorDisplayName += highlightedStyle.Render("@" + user.DisplayName)
 			}
-			messageString := "---\n\n" + creatorDisplayName + " - " + message.Text + "\n\n---\n\n"
+			messageString := messageStyle.Width(m.width-12).Render(creatorDisplayName+":\n"+message.Text) + "\n\n"
 			b.WriteString(utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient))
 		}
 		m.tabs[msg.tab].messagePager.SetContent(b.String())
@@ -453,10 +456,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				creatorDisplayName += highlightedStyle.Render("@" + user.DisplayName)
 			}
-			messageString := "---\n\n" + creatorDisplayName + " - " + message.Text + "\n\n---\n\n"
+			messageString := messageStyle.Width(m.width-8).Render(creatorDisplayName+":\n"+message.Text) + "\n\n"
 			b.WriteString(utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient))
 		}
 		m.tabs[3].messagePager.SetContent(b.String())
+	case *tea.WindowSizeMsg:
+		m.tabs[m.activeTab].messagePager.Width = msg.Width - 4
+		m.tabs[m.activeTab].messagePager.Height = msg.Height - 4
 	}
 
 	// check which tab the user is on
