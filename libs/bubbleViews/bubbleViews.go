@@ -24,6 +24,8 @@ import (
 	"charming-slack/libs/database"
 	"charming-slack/libs/keymaps"
 	"charming-slack/libs/utils"
+
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 var style = lipgloss.NewStyle().
@@ -559,13 +561,30 @@ func (m Model) AuthView(fittedStyle lipgloss.Style) string {
 }
 
 func (m Model) SlackOnboardingView(fittedStyle lipgloss.Style) string {
-	content := fittedStyle.Copy().
-		Align(lipgloss.Center, lipgloss.Center).
-		Render("Click the link below to oauth your slack account with CS!" +
-			"\n\n" +
-			os.Getenv("REDIRECT_URL") + "/install?state=" + m.user)
+	oauthLink := os.Getenv("REDIRECT_URL") + "/install?state=" + m.user
+	qrcodeString, _ := qrcode.New(oauthLink, qrcode.Low)
 
-	return content
+	text := "Click the link below to oauth your slack account with CS!" +
+		"\n\n" + oauthLink + "\n\n" + qrcodeString.ToSmallString(false)
+
+	// check whether the view is too small
+	if lipgloss.Width(text) > m.width {
+		// return a too small window message
+		paddingStyle := lipgloss.NewStyle().
+			Padding(0, 2)
+
+		content := fittedStyle.
+			Width(m.width-6).
+			Height(m.height-3).
+			Background(lipgloss.NoColor{}).
+			Align(lipgloss.Center, lipgloss.Center).
+			Render("Window too small")
+		return paddingStyle.Render(content)
+	}
+
+	return fittedStyle.Copy().
+		Align(lipgloss.Center, lipgloss.Center).
+		Render(text)
 }
 
 func publicChannelsView(style lipgloss.Style, m Model) string {
