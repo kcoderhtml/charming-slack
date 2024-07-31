@@ -285,8 +285,6 @@ func getDms(slackClient *slack.Client) tea.Cmd {
 			items = append(items, item(name))
 		}
 
-		log.Info("got dms", "#dm", len(items))
-
 		return dmUpdateMessage{items, dms}
 	}
 }
