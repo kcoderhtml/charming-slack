@@ -49,9 +49,6 @@ var highlightedStyleBot = highlightedStyle.Copy().
 var messageStyle = lipgloss.NewStyle().
 	Border(lipgloss.NormalBorder()).PaddingLeft(1).PaddingRight(1)
 
-var channelStyle = highlightedStyle.Copy().
-	Foreground(lipgloss.Color("#1f7a9b"))
-
 type tab struct {
 	title          string
 	content        func(lipgloss.Style, Model) string
@@ -456,7 +453,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				creatorDisplayName += highlightedStyle.Render("@" + user.DisplayName)
 			}
 			messageString := messageStyle.Width(m.width-12).Render(creatorDisplayName+":\n"+message.Text) + "\n\n"
-			b.WriteString(utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, channelStyle, *m.slackClient))
+			b.WriteString(utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient))
 		}
 
 		if len(msg.messages) == 0 {
@@ -477,7 +474,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				creatorDisplayName += highlightedStyle.Render("@" + user.DisplayName)
 			}
 			messageString := messageStyle.Width(m.width-12).Render(creatorDisplayName+":\n"+message.Text) + "\n\n"
-			b.WriteString(utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, channelStyle, *m.slackClient))
+			b.WriteString(utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient))
 		}
 
 		if len(msg.messages) == 0 {
