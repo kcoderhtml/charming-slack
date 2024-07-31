@@ -463,6 +463,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				creatorDisplayName += highlightedStyle.Render("@" + user.DisplayName)
 			}
+
 			i, err := strconv.ParseInt(strings.Split(message.Timestamp, ".")[0], 10, 64)
 			if err != nil {
 				panic(err)
@@ -502,8 +503,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				creatorDisplayName += highlightedStyle.Render("@" + user.DisplayName)
 			}
-			messageString := creatorDisplayName + ":\n" + message.Text
+
+			i, err := strconv.ParseInt(strings.Split(message.Timestamp, ".")[0], 10, 64)
+			if err != nil {
+				panic(err)
+			}
+			tm := time.Unix(i, 0)
+			messageString := mutedStyle.Render("\n  ---") + lessMutedStyle.Render("\n  time: ") + evenLessMutedStyle.Render(tm.Format(time.DateTime)) + lessMutedStyle.Render("\n  sender: ") + creatorDisplayName + lessMutedStyle.Render("\n  channel: ") + evenLessMutedStyle.Render(message.Channel.Name) + mutedStyle.Render("\n  ---\n")
+
+			glamR, _ := glamour.NewTermRenderer(
+				glamour.WithWordWrap(m.width-18),
+				glamour.WithStylePath("styles/overgrown.json"),
+				glamour.WithPreservedNewLines(),
+			)
+
+			glamString, _ := glamR.Render(utils.UrlParser(message.Text))
+
+			messageString += glamString
+
 			messageString = utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient)
+
 			b.WriteString(messageStyle.Width(m.width-12).Render(messageString) + "\n\n")
 		}
 
