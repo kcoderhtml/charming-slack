@@ -1,10 +1,12 @@
 package bubbleViews
 
 import (
+	"cmp"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -258,6 +260,11 @@ func getDms(slackClient *slack.Client) tea.Cmd {
 		if err != nil {
 			return errMsg{err}
 		}
+
+		// sort dms by the priority field
+		slices.SortFunc(dms, func(a, b slack.Channel) int {
+			return -cmp.Compare(a.Priority, b.Priority)
+		})
 
 		items := []list.Item{}
 		for _, dm := range dms {
