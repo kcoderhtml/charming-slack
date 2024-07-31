@@ -452,8 +452,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				creatorDisplayName += highlightedStyle.Render("@" + user.DisplayName)
 			}
-			messageString := messageStyle.Width(m.width-12).Render(creatorDisplayName+":\n"+message.Text) + "\n\n"
-			b.WriteString(utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient))
+			messageString := creatorDisplayName + ":\n" + message.Text
+			messageString = utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient)
+			b.WriteString(messageStyle.Width(m.width-12).Render(messageString) + "\n\n")
 		}
 
 		if len(msg.messages) == 0 {
@@ -473,8 +474,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				creatorDisplayName += highlightedStyle.Render("@" + user.DisplayName)
 			}
-			messageString := messageStyle.Width(m.width-12).Render(creatorDisplayName+":\n"+message.Text) + "\n\n"
-			b.WriteString(utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient))
+			messageString := creatorDisplayName + ":\n" + message.Text
+			messageString = utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient)
+			b.WriteString(messageStyle.Width(m.width-12).Render(messageString) + "\n\n")
 		}
 
 		if len(msg.messages) == 0 {
