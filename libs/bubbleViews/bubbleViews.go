@@ -17,6 +17,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/ssh"
@@ -45,6 +46,9 @@ var highlightedStyle = lipgloss.NewStyle().
 	Bold(true).Foreground(lipgloss.Color("#866bef"))
 var highlightedStyleBot = highlightedStyle.Copy().
 	Foreground(lipgloss.Color("#b45fd8"))
+
+var mutedStyle = lipgloss.NewStyle().
+	Italic(true).Foreground(lipgloss.Color("#7f71b7"))
 
 var messageStyle = lipgloss.NewStyle().
 	Border(lipgloss.NormalBorder()).PaddingLeft(1).PaddingRight(1)
@@ -452,8 +456,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				creatorDisplayName += highlightedStyle.Render("@" + user.DisplayName)
 			}
-			messageString := creatorDisplayName + ":\n" + message.Text
+			messageString := creatorDisplayName + mutedStyle.Render("\n---\n")
+
+			glamR, _ := glamour.NewTermRenderer(
+				// wrap output at specific width (default is 80)
+				glamour.WithWordWrap(m.width - 18),
+			)
+
+			glamString, _ := glamR.Render(utils.UrlParser(message.Text))
+
+			messageString += glamString
+
 			messageString = utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient)
+
 			b.WriteString(messageStyle.Width(m.width-12).Render(messageString) + "\n\n")
 		}
 
