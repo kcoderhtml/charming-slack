@@ -327,6 +327,14 @@ func searchMessages(slackClient *slack.Client, search string) tea.Cmd {
 	}
 }
 
+type backUpdate string
+
+func goBack() tea.Cmd {
+	return func() tea.Msg {
+		return backUpdate("select")
+	}
+}
+
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(getChannels(m.slackClient), getPrivateChannels(m.slackClient), getDms(m.slackClient), m.searchInput.Cursor.BlinkCmd())
 }
@@ -394,8 +402,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case key.Matches(msg, m.keys.ShiftEnter):
 			if m.page == "slack" {
-				m.tabs[m.activeTab].state = "select"
-				log.Info("set state to select")
+				cmds = append(cmds, goBack())
 			}
 		case key.Matches(msg, m.keys.Tab):
 			if m.page == "slack" {
@@ -470,6 +477,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.tabs[3].messagePager.SetContent(b.String())
+	case backUpdate:
+		m.tabs[m.activeTab].state = string(msg)
 	case *tea.WindowSizeMsg:
 		m.tabs[m.activeTab].messagePager.Width = msg.Width - 4
 		m.tabs[m.activeTab].messagePager.Height = msg.Height - 4
