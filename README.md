@@ -47,6 +47,7 @@ oauth_config:
       - mpim:write
       - users:read
       - users.profile:read
+      - search:read
 settings:
   org_deploy_enabled: false
   socket_mode_enabled: false

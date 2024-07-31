@@ -45,11 +45,12 @@ var highlightedStyleBot = highlightedStyle.Copy().
 	Foreground(lipgloss.Color("#b45fd8"))
 
 type tab struct {
-	title        string
-	content      func(lipgloss.Style, Model) string
-	messages     []slack.Message
-	state        string
-	messagePager viewport.Model
+	title          string
+	content        func(lipgloss.Style, Model) string
+	messages       []slack.Message
+	searchMessages []slack.SearchMessage
+	state          string
+	messagePager   viewport.Model
 }
 
 type Model struct {
@@ -198,7 +199,7 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			user:               s.User(),
 			publicKey:          s.PublicKey(),
 			page:               page,
-			tabs:               []tab{{"Public Channels", publicChannelsView, []slack.Message{}, "select", p}, {"Private Channels", privateChannelsView, []slack.Message{}, "select", p}, {"DMs", directMessagesView, []slack.Message{}, "select", p}, {"Search", searchView, []slack.Message{}, "select", p}},
+			tabs:               []tab{{"Public Channels", publicChannelsView, []slack.Message{}, []slack.SearchMessage{}, "select", p}, {"Private Channels", privateChannelsView, []slack.Message{}, []slack.SearchMessage{}, "select", p}, {"DMs", directMessagesView, []slack.Message{}, []slack.SearchMessage{}, "select", p}, {"Search", searchView, []slack.Message{}, []slack.SearchMessage{}, "select", p}},
 			channelList:        l,
 			privateChannelList: privateChannelL,
 			dmList:             dmL,
@@ -306,6 +307,23 @@ func getMessages(slackClient *slack.Client, channel string, tab int) tea.Cmd {
 	}
 }
 
+type searchMessageUpdate struct {
+	messages []slack.SearchMessage
+}
+
+func searchMessages(slackClient *slack.Client, search string) tea.Cmd {
+	return func() tea.Msg {
+		messages, err := slackClient.SearchMessages(search, slack.SearchParameters{Count: 100})
+		if err != nil {
+			log.Error("error fetching messages", "err", err)
+
+			return errMsg{err}
+		}
+
+		return searchMessageUpdate{messages: messages.Matches}
+	}
+}
+
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(getChannels(m.slackClient), getPrivateChannels(m.slackClient), getDms(m.slackClient), m.searchInput.Cursor.BlinkCmd())
 }
@@ -368,6 +386,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case 3:
 					m.tabs[m.activeTab].state = "view"
 					cmds = append(cmds, m.searchInput.Cursor.SetMode(cursor.CursorHide))
+					cmds = append(cmds, searchMessages(m.slackClient, m.searchInput.Value()))
 				}
 			}
 		case key.Matches(msg, m.keys.ShiftEnter):
@@ -422,6 +441,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			b.WriteString(utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient))
 		}
 		m.tabs[msg.tab].messagePager.SetContent(b.String())
+	case searchMessageUpdate:
+		m.tabs[3].searchMessages = msg.messages
+		// message content
+		var b strings.Builder
+		for _, message := range msg.messages {
+			creatorDisplayName := ""
+			user := database.GetUserOrCreate(message.User, *m.slackClient)
+			if user.DisplayName == "" {
+				creatorDisplayName = highlightedStyleBot.Render("@" + user.RealName + " (bot)")
+			} else {
+				creatorDisplayName += highlightedStyle.Render("@" + user.DisplayName)
+			}
+			messageString := "---\n\n" + creatorDisplayName + " - " + message.Text + "\n\n---\n\n"
+			b.WriteString(utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient))
+		}
+		m.tabs[3].messagePager.SetContent(b.String())
 	}
 
 	// check which tab the user is on
@@ -672,10 +707,16 @@ func directMessagesView(style lipgloss.Style, m Model) string {
 }
 
 func searchView(style lipgloss.Style, m Model) string {
-	text := "What do you want to search for?\n\n" +
-		m.searchInput.View()
+	switch m.tabs[m.activeTab].state {
+	case "select":
+		text := "What do you want to search for?\n\n" +
+			m.searchInput.View()
+		return style.Render(text)
+	case "view":
+		return m.tabs[3].messagePager.View()
+	}
 
-	return style.Render(text)
+	return ""
 }
 
 func tabBorderWithBottom(left, middle, right string, noTop bool) lipgloss.Border {
