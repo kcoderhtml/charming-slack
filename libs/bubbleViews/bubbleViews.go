@@ -443,6 +443,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			messageString := messageStyle.Width(m.width-12).Render(creatorDisplayName+":\n"+message.Text) + "\n\n"
 			b.WriteString(utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient))
 		}
+
+		if len(msg.messages) == 0 {
+			b.WriteString(lipgloss.NewStyle().Width(m.width - 12).Align(lipgloss.Center).Render("no message found :("))
+		}
+
 		m.tabs[msg.tab].messagePager.SetContent(b.String())
 	case searchMessageUpdate:
 		m.tabs[3].searchMessages = msg.messages
@@ -459,6 +464,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			messageString := messageStyle.Width(m.width-12).Render(creatorDisplayName+":\n"+message.Text) + "\n\n"
 			b.WriteString(utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient))
 		}
+
+		if len(msg.messages) == 0 {
+			b.WriteString(lipgloss.NewStyle().Width(m.width - 12).Align(lipgloss.Center).Render("no message found :("))
+		}
+
 		m.tabs[3].messagePager.SetContent(b.String())
 	case *tea.WindowSizeMsg:
 		m.tabs[m.activeTab].messagePager.Width = msg.Width - 4
