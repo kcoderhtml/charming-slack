@@ -8,9 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -69,6 +71,7 @@ type Model struct {
 	publicKey          ssh.PublicKey
 	activeTab          int
 	slackClient        *slack.Client
+	searchInput        textinput.Model
 }
 
 type timeMsg time.Time
@@ -174,6 +177,12 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 		dmL := l
 		dmL.Title = "DMs"
 
+		ti := textinput.New()
+		ti.Placeholder = "charming slack"
+		ti.Focus()
+		ti.CharLimit = 156
+		ti.Width = 20
+
 		p := viewport.New(pty.Window.Width-4, pty.Window.Height-5)
 		p.Style = p.Style.Border(lipgloss.RoundedBorder()).
 			BorderTop(false).BorderForeground(lipgloss.Color("#7D56F3")).
@@ -195,6 +204,7 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			dmList:             dmL,
 			activeTab:          0,
 			slackClient:        slack.New(database.DB.ApplicationData[s.User()].SlackToken),
+			searchInput:        ti,
 		}
 
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
@@ -297,7 +307,7 @@ func getMessages(slackClient *slack.Client, channel string, tab int) tea.Cmd {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(getChannels(m.slackClient), getPrivateChannels(m.slackClient), getDms(m.slackClient))
+	return tea.Batch(getChannels(m.slackClient), getPrivateChannels(m.slackClient), getDms(m.slackClient), m.searchInput.Cursor.BlinkCmd())
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -355,6 +365,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// switch tab state to messages and run the get messages command
 					m.tabs[m.activeTab].state = "messages"
 					cmds = append(cmds, getMessages(m.slackClient, m.dms[m.dmList.Index()].ID, m.activeTab))
+				case 3:
+					m.tabs[m.activeTab].state = "view"
+					cmds = append(cmds, m.searchInput.Cursor.SetMode(cursor.CursorHide))
 				}
 			}
 		case key.Matches(msg, m.keys.ShiftEnter):
@@ -365,6 +378,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Tab):
 			if m.page == "slack" {
 				m.activeTab = (m.activeTab + 1) % len(m.tabs)
+				if m.activeTab == 3 {
+					m.tabs[m.activeTab].state = "select"
+					cmds = append(cmds, m.searchInput.Cursor.SetMode(cursor.CursorBlink))
+					cmds = append(cmds, m.searchInput.Focus())
+				}
 			}
 		case key.Matches(msg, m.keys.ShiftTab):
 			if m.page == "slack" {
@@ -440,6 +458,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			messagePager, messageCommand := m.tabs[2].messagePager.Update(msg)
 			m.tabs[2].messagePager = messagePager
 			cmds = append(cmds, messageCommand)
+		}
+	case 3:
+		if m.tabs[m.activeTab].state == "select" {
+			searchInput, cmd := m.searchInput.Update(msg)
+			m.searchInput = searchInput
+			cmds = append(cmds, cmd)
 		}
 	}
 	return m, tea.Batch(cmds...)
@@ -648,7 +672,10 @@ func directMessagesView(style lipgloss.Style, m Model) string {
 }
 
 func searchView(style lipgloss.Style, m Model) string {
-	return style.Render("search")
+	text := "What do you want to search for?\n\n" +
+		m.searchInput.View()
+
+	return style.Render(text)
 }
 
 func tabBorderWithBottom(left, middle, right string, noTop bool) lipgloss.Border {
