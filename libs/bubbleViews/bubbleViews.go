@@ -666,7 +666,7 @@ func publicChannelsView(style lipgloss.Style, m Model) string {
 
 		return style.Render(m.channelList.View())
 	case "messages":
-		return m.tabs[0].messagePager.View()
+		return m.tabs[m.activeTab].messagePager.View()
 	}
 
 	return ""
@@ -686,7 +686,7 @@ func privateChannelsView(style lipgloss.Style, m Model) string {
 
 		return style.Render(m.privateChannelList.View())
 	case "messages":
-		return m.tabs[1].messagePager.View()
+		return m.tabs[m.activeTab].messagePager.View()
 	}
 
 	return ""
@@ -706,7 +706,7 @@ func directMessagesView(style lipgloss.Style, m Model) string {
 
 		return style.Render(m.dmList.View())
 	case "messages":
-		return m.tabs[0].messagePager.View()
+		return m.tabs[m.activeTab].messagePager.View()
 	}
 
 	return ""
@@ -719,7 +719,7 @@ func searchView(style lipgloss.Style, m Model) string {
 			m.searchInput.View()
 		return style.Render(text)
 	case "view":
-		return m.tabs[3].messagePager.View()
+		return m.tabs[m.activeTab].messagePager.View()
 	}
 
 	return ""
