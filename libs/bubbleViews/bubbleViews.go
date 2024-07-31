@@ -456,7 +456,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				creatorDisplayName += highlightedStyle.Render("@" + user.DisplayName)
 			}
-			messageString := messageStyle.Width(m.width-8).Render(creatorDisplayName+":\n"+message.Text) + "\n\n"
+			messageString := messageStyle.Width(m.width-12).Render(creatorDisplayName+":\n"+message.Text) + "\n\n"
 			b.WriteString(utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient))
 		}
 		m.tabs[3].messagePager.SetContent(b.String())
