@@ -22,7 +22,7 @@ func ClampString(s string, max int) string {
 	return s
 }
 
-func UserIdParser(s string, highlightedStyle lipgloss.Style, highlightedStyleBot lipgloss.Style, slackClient slack.Client) string {
+func UserIdParser(s string, highlightedStyle lipgloss.Style, highlightedStyleBot lipgloss.Style, channelStyle lipgloss.Style, slackClient slack.Client) string {
 	// look for things like <@U05JX2BHANT> and replace them with the proper display name
 	re := regexp.MustCompile(`<@(U\w+)>`)
 	result := re.ReplaceAllStringFunc(s, func(match string) string {
@@ -40,5 +40,15 @@ func UserIdParser(s string, highlightedStyle lipgloss.Style, highlightedStyleBot
 		}
 	})
 
-	return result
+	channelRe := regexp.MustCompile(`<#(\w+)\|(\w+[-_]*\w*)>`)
+	result2 := channelRe.ReplaceAllStringFunc(result, func(match string) string {
+		// extract the user ID from the match
+		channel := channelRe.FindStringSubmatch(match)[2]
+		// get the display name for the user ID from the database
+		// return the display name as the replacement
+
+		return channelStyle.Render("#" + channel)
+	})
+
+	return result2
 }
