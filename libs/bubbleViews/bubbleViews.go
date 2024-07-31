@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -49,6 +50,12 @@ var highlightedStyleBot = highlightedStyle.Copy().
 
 var mutedStyle = lipgloss.NewStyle().
 	Italic(true).Foreground(lipgloss.Color("#7f71b7"))
+
+var lessMutedStyle = mutedStyle.Copy().
+	Foreground(lipgloss.Color("#92909b"))
+
+var evenLessMutedStyle = mutedStyle.Copy().
+	Foreground(lipgloss.Color("#bcbfd3"))
 
 var messageStyle = lipgloss.NewStyle().
 	Border(lipgloss.NormalBorder()).PaddingLeft(1).PaddingRight(1)
@@ -456,7 +463,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				creatorDisplayName += highlightedStyle.Render("@" + user.DisplayName)
 			}
-			messageString := mutedStyle.Render("\n  ---\n") + "  " + creatorDisplayName + mutedStyle.Render("\n  ---\n")
+			i, err := strconv.ParseInt(strings.Split(message.Timestamp, ".")[0], 10, 64)
+			if err != nil {
+				panic(err)
+			}
+			tm := time.Unix(i, 0)
+			messageString := mutedStyle.Render("\n  ---") + lessMutedStyle.Render("\n  time: ") + evenLessMutedStyle.Render(tm.Format(time.DateTime)) + lessMutedStyle.Render("\n  sender: ") + creatorDisplayName + mutedStyle.Render("\n  ---\n")
 
 			glamR, _ := glamour.NewTermRenderer(
 				glamour.WithWordWrap(m.width-18),
