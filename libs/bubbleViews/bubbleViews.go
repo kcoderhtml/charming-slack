@@ -460,7 +460,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			glamR, _ := glamour.NewTermRenderer(
 				// wrap output at specific width (default is 80)
-				glamour.WithWordWrap(m.width - 18),
+				glamour.WithWordWrap(m.width-18),
+				glamour.WithStylePath("styles/overgrown.json"),
 			)
 
 			glamString, _ := glamR.Render(utils.UrlParser(message.Text))
