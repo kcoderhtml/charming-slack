@@ -45,6 +45,7 @@ var style = lipgloss.NewStyle().
 
 var highlightedStyle = lipgloss.NewStyle().
 	Bold(true).Foreground(lipgloss.Color("#866bef"))
+
 var highlightedStyleBot = highlightedStyle.Copy().
 	Foreground(lipgloss.Color("#b45fd8"))
 
@@ -229,12 +230,14 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 	return bubbletea.MiddlewareWithProgramHandler(teaHandler, termenv.ANSI256)
 }
 
-type channelUpdateMessage struct{ channels []slack.Channel }
-type privateChannelUpdateMessage struct{ channels []slack.Channel }
-type dmUpdateMessage struct {
-	items []list.Item
-	dms   []slack.Channel
-}
+type (
+	channelUpdateMessage        struct{ channels []slack.Channel }
+	privateChannelUpdateMessage struct{ channels []slack.Channel }
+	dmUpdateMessage             struct {
+		items []list.Item
+		dms   []slack.Channel
+	}
+)
 
 type errMsg struct{ err error }
 
@@ -372,8 +375,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case key.Matches(msg, m.keys.Enter):
 			// page specific logic
-			switch {
-			case m.page == "auth":
+			switch m.page {
+			case "auth":
 				// add the user and their public key to the map
 				// parse the public key
 				parsed := m.publicKey.Type() + " " + base64.StdEncoding.EncodeToString(m.publicKey.Marshal())
@@ -382,20 +385,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				log.Info("added user", "user", m.user, "with public key", parsed[:20])
 				m.page = "slackOnboarding"
-			case m.page == "slackOnboarding":
+			case "slackOnboarding":
 				// check if the user has a slack token
 				// if they do, redirect to home
 				if database.DB.ApplicationData[m.user].SlackToken != "" {
 					m.slackClient = slack.New(database.DB.ApplicationData[m.user].SlackToken)
 					m.page = "home"
 				}
-			case m.page == "home":
+			case "home":
 				// redirect to slack page
 				m.page = "slack"
 				cmds = append(cmds, getChannels(m.slackClient))
 				cmds = append(cmds, getPrivateChannels(m.slackClient))
 				cmds = append(cmds, getDms(m.slackClient))
-			case m.page == "slack":
+			case "slack":
 				// check what page we are on
 				switch m.activeTab {
 				case 0:
