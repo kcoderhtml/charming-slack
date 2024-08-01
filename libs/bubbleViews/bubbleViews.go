@@ -71,25 +71,25 @@ type tab struct {
 }
 
 type Model struct {
-	term               string
-	width              int
-	height             int
-	time               time.Time
-	keys               keymaps.KeyMap
-	help               help.Model
-	page               string
-	tabs               []tab
 	channelList        list.Model
 	privateChannelList list.Model
 	dmList             list.Model
+	time               time.Time
+	publicKey          ssh.PublicKey
+	slackClient        *slack.Client
+	help               help.Model
+	term               string
+	user               string
+	page               string
+	keys               keymaps.KeyMap
+	tabs               []tab
 	channels           []slack.Channel
 	privateChannels    []slack.Channel
 	dms                []slack.Channel
-	user               string
-	publicKey          ssh.PublicKey
-	activeTab          int
-	slackClient        *slack.Client
 	searchInput        textinput.Model
+	width              int
+	height             int
+	activeTab          int
 }
 
 type timeMsg time.Time
@@ -311,9 +311,9 @@ func getDms(slackClient *slack.Client) tea.Cmd {
 }
 
 type tabMessageUpdate struct {
+	channel  string
 	messages []slack.Message
 	tab      int
-	channel  string
 }
 
 func getMessages(slackClient *slack.Client, channel string, tab int) tea.Cmd {
