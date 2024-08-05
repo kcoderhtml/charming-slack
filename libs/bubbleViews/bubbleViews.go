@@ -201,7 +201,7 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 		ti.CharLimit = 156
 		ti.Width = 20
 
-		p := viewport.New(pty.Window.Width-4, pty.Window.Height-5)
+		p := viewport.New(pty.Window.Width-4, pty.Window.Height-5-lipgloss.Height(sendMessageView(Model{})))
 		p.Style = p.Style.Border(lipgloss.RoundedBorder()).
 			BorderTop(false).BorderForeground(lipgloss.Color("#7D56F3")).
 			Padding(1).PaddingLeft(2).PaddingRight(2)
@@ -538,7 +538,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.tabs[m.activeTab].state = string(msg)
 	case *tea.WindowSizeMsg:
 		m.tabs[m.activeTab].messagePager.Width = msg.Width - 4
-		m.tabs[m.activeTab].messagePager.Height = msg.Height - 4
+		m.tabs[m.activeTab].messagePager.Height = msg.Height - 5 - lipgloss.Height(sendMessageView(Model{}))
 	}
 
 	// check which tab the user is on
@@ -747,7 +747,7 @@ func publicChannelsView(style lipgloss.Style, m Model) string {
 
 		return style.Render(m.channelList.View())
 	case "messages":
-		return m.tabs[m.activeTab].messagePager.View()
+		return m.tabs[m.activeTab].messagePager.View() + "\n" + sendMessageView(m)
 	}
 
 	return ""
@@ -804,6 +804,10 @@ func searchView(style lipgloss.Style, m Model) string {
 	}
 
 	return ""
+}
+
+func sendMessageView(m Model) string {
+	return "this is the template for now"
 }
 
 func tabBorderWithBottom(left, middle, right string, noTop bool) lipgloss.Border {
