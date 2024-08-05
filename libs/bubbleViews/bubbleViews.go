@@ -87,6 +87,7 @@ type Model struct {
 	privateChannels    []slack.Channel
 	dms                []slack.Channel
 	searchInput        textinput.Model
+	messageInput       textinput.Model
 	width              int
 	height             int
 	activeTab          int
@@ -201,6 +202,9 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 		ti.CharLimit = 156
 		ti.Width = 20
 
+		mi := ti
+		mi.Placeholder = "your message here"
+
 		p := viewport.New(pty.Window.Width-4, pty.Window.Height-5-lipgloss.Height(sendMessageView(Model{})))
 		p.Style = p.Style.Border(lipgloss.RoundedBorder()).
 			BorderTop(false).BorderForeground(lipgloss.Color("#7D56F3")).
@@ -223,6 +227,7 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			activeTab:          0,
 			slackClient:        slack.New(database.DB.ApplicationData[s.User()].SlackToken),
 			searchInput:        ti,
+			messageInput:       mi,
 		}
 
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
@@ -405,6 +410,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// switch tab state to messages and run the get messages command
 					m.tabs[m.activeTab].state = "messages"
 					cmds = append(cmds, getMessages(m.slackClient, m.channels[m.channelList.Index()].ID, m.activeTab))
+					cmds = append(cmds, m.messageInput.Focus())
 				case 1:
 					// switch tab state to messages and run the get messages command
 					m.tabs[m.activeTab].state = "messages"
@@ -553,6 +559,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			messagePager, messageCommand := m.tabs[0].messagePager.Update(msg)
 			m.tabs[0].messagePager = messagePager
 			cmds = append(cmds, messageCommand)
+			messageInput, messageInputCommand := m.messageInput.Update(msg)
+			m.messageInput = messageInput
+			cmds = append(cmds, messageInputCommand)
 		}
 	case 1:
 		switch m.tabs[1].state {
@@ -807,7 +816,7 @@ func searchView(style lipgloss.Style, m Model) string {
 }
 
 func sendMessageView(m Model) string {
-	return "this is the template for now"
+	return m.messageInput.View()
 }
 
 func tabBorderWithBottom(left, middle, right string, noTop bool) lipgloss.Border {
