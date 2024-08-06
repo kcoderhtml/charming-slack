@@ -800,7 +800,7 @@ func privateChannelsView(style lipgloss.Style, m Model) string {
 
 		return style.Render(m.privateChannelList.View())
 	case "messages":
-		return m.tabs[m.activeTab].messagePager.View()
+		return m.tabs[m.activeTab].messagePager.View() + "\n" + sendMessageView(m)
 	}
 
 	return ""
