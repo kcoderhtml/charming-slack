@@ -69,6 +69,7 @@ type tab struct {
 	state          string
 	messagePager   viewport.Model
 	messageInput   textinput.Model
+	focused        int
 }
 
 type Model struct {
@@ -205,7 +206,7 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 		mi := ti
 		mi.Placeholder = "your message here"
 
-		p := viewport.New(pty.Window.Width-4, pty.Window.Height-5-lipgloss.Height(sendMessageView(Model{})))
+		p := viewport.New(pty.Window.Width-4, pty.Window.Height-4-2)
 		p.Style = p.Style.Border(lipgloss.RoundedBorder()).
 			BorderTop(false).BorderForeground(lipgloss.Color("#7D56F3")).
 			Padding(1).PaddingLeft(2).PaddingRight(2)
@@ -220,7 +221,7 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			user:               s.User(),
 			publicKey:          s.PublicKey(),
 			page:               page,
-			tabs:               []tab{{"Public Channels", publicChannelsView, []slack.Message{}, []slack.SearchMessage{}, "select", p, mi}, {"Private Channels", privateChannelsView, []slack.Message{}, []slack.SearchMessage{}, "select", p, mi}, {"DMs", directMessagesView, []slack.Message{}, []slack.SearchMessage{}, "select", p, mi}, {"Search", searchView, []slack.Message{}, []slack.SearchMessage{}, "select", p, mi}},
+			tabs:               []tab{{"Public Channels", publicChannelsView, []slack.Message{}, []slack.SearchMessage{}, "select", p, mi, 0}, {"Private Channels", privateChannelsView, []slack.Message{}, []slack.SearchMessage{}, "select", p, mi, 0}, {"DMs", directMessagesView, []slack.Message{}, []slack.SearchMessage{}, "select", p, mi, 0}, {"Search", searchView, []slack.Message{}, []slack.SearchMessage{}, "select", p, mi, 0}},
 			channelList:        l,
 			privateChannelList: privateChannelL,
 			dmList:             dmL,
@@ -409,6 +410,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// switch tab state to messages and run the get messages command
 					m.tabs[m.activeTab].state = "messages"
 					cmds = append(cmds, getMessages(m.slackClient, m.channels[m.channelList.Index()].ID, m.activeTab))
+					m.tabs[m.activeTab].focused = 1
 					cmds = append(cmds, m.tabs[0].messageInput.Focus())
 				case 1:
 					// switch tab state to messages and run the get messages command
@@ -430,16 +432,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case key.Matches(msg, m.keys.Tab):
 			if m.page == "slack" {
-				m.activeTab = (m.activeTab + 1) % len(m.tabs)
-				if m.activeTab == 3 {
-					m.tabs[m.activeTab].state = "select"
-					cmds = append(cmds, m.searchInput.Cursor.SetMode(cursor.CursorBlink))
-					cmds = append(cmds, m.searchInput.Focus())
+				switch m.tabs[m.activeTab].state {
+				case "select":
+					m.activeTab = (m.activeTab + 1) % len(m.tabs)
+					if m.activeTab == 3 {
+						m.tabs[m.activeTab].state = "select"
+						cmds = append(cmds, m.searchInput.Cursor.SetMode(cursor.CursorBlink))
+						cmds = append(cmds, m.searchInput.Focus())
+					}
+				case "view", "messages":
+					m.tabs[m.activeTab].focused = (m.tabs[m.activeTab].focused + 1) % 2
 				}
 			}
 		case key.Matches(msg, m.keys.ShiftTab):
 			if m.page == "slack" {
-				m.activeTab = (m.activeTab - 1 + len(m.tabs)) % len(m.tabs)
+				switch m.tabs[m.activeTab].state {
+				case "select":
+					m.activeTab = (m.activeTab - 1 + len(m.tabs)) % len(m.tabs)
+				case "view":
+					m.tabs[m.activeTab].focused = (m.tabs[m.activeTab].focused + 1) % 2
+				}
 			}
 		}
 	case channelUpdateMessage:
@@ -543,7 +555,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.tabs[m.activeTab].state = string(msg)
 	case *tea.WindowSizeMsg:
 		m.tabs[m.activeTab].messagePager.Width = msg.Width - 4
-		m.tabs[m.activeTab].messagePager.Height = msg.Height - 5 - lipgloss.Height(sendMessageView(Model{}))
+		m.tabs[m.activeTab].messagePager.Height = msg.Height - 4 - 2
 	}
 
 	// check which tab the user is on
@@ -555,12 +567,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.channelList = channelList
 			cmds = append(cmds, channelCmd)
 		case "messages":
-			messagePager, messageCommand := m.tabs[0].messagePager.Update(msg)
-			m.tabs[0].messagePager = messagePager
-			cmds = append(cmds, messageCommand)
-			messageInput, messageInputCommand := m.tabs[0].messageInput.Update(msg)
-			m.tabs[0].messageInput = messageInput
-			cmds = append(cmds, messageInputCommand)
+			switch m.tabs[m.activeTab].focused {
+			case 0:
+				messagePager, messageCommand := m.tabs[0].messagePager.Update(msg)
+				m.tabs[0].messagePager = messagePager
+				cmds = append(cmds, messageCommand)
+			case 1:
+				messageInput, messageInputCommand := m.tabs[0].messageInput.Update(msg)
+				m.tabs[0].messageInput = messageInput
+				cmds = append(cmds, messageInputCommand)
+			}
 		}
 	case 1:
 		switch m.tabs[1].state {
