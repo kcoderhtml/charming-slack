@@ -416,6 +416,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// switch tab state to messages and run the get messages command
 					m.tabs[m.activeTab].state = "messages"
 					cmds = append(cmds, getMessages(m.slackClient, m.privateChannels[m.privateChannelList.Index()].ID, m.activeTab))
+					m.tabs[m.activeTab].focused = 1
+					cmds = append(cmds, m.tabs[0].messageInput.Focus())
 				case 2:
 					// switch tab state to messages and run the get messages command
 					m.tabs[m.activeTab].state = "messages"
@@ -585,9 +587,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.privateChannelList = mpimList
 			cmds = append(cmds, mpimCmd)
 		case "messages":
-			messagePager, messageCommand := m.tabs[1].messagePager.Update(msg)
-			m.tabs[1].messagePager = messagePager
-			cmds = append(cmds, messageCommand)
+			switch m.tabs[m.activeTab].focused {
+			case 0:
+				messagePager, messageCommand := m.tabs[1].messagePager.Update(msg)
+				m.tabs[1].messagePager = messagePager
+				cmds = append(cmds, messageCommand)
+			case 1:
+				messageInput, messageInputCommand := m.tabs[1].messageInput.Update(msg)
+				m.tabs[1].messageInput = messageInput
+				cmds = append(cmds, messageInputCommand)
+			}
 		}
 	case 2:
 		switch m.tabs[2].state {
