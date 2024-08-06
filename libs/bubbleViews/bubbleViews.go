@@ -359,6 +359,19 @@ func goBack() tea.Cmd {
 	}
 }
 
+type sendMessageUpdate string
+
+func sendMessage(channel string, message string, slackClient slack.Client) tea.Cmd {
+	return func() tea.Msg {
+		_, _, err := slackClient.PostMessage(channel, slack.MsgOptionText(message, false))
+		if err != nil {
+			log.Error("error sending message", "err", err)
+			return errMsg{err}
+		}
+		return sendMessageUpdate("success")
+	}
+}
+
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(getChannels(m.slackClient), getPrivateChannels(m.slackClient), getDms(m.slackClient), m.searchInput.Cursor.BlinkCmd())
 }
@@ -419,6 +432,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						cmds = append(cmds, m.tabs[m.activeTab].messageInput.Focus())
 					case "messages":
 						// send the message
+						message := m.tabs[m.activeTab].messageInput.Value()
+						channel := ""
+
+						switch m.activeTab {
+						case 0:
+							channel = m.channels[m.channelList.Index()].ID
+						case 1:
+							channel = m.privateChannels[m.privateChannelList.Index()].ID
+						case 2:
+							channel = m.dms[m.dmList.Index()].ID
+						}
+
+						log.Info("sending a message", "channel", channel)
+						cmds = append(cmds, sendMessage(channel, message, *m.slackClient))
 					}
 				}
 			}
@@ -552,6 +579,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case *tea.WindowSizeMsg:
 		m.tabs[m.activeTab].messagePager.Width = msg.Width - 4
 		m.tabs[m.activeTab].messagePager.Height = msg.Height - 4 - 2
+	case sendMessageUpdate:
+		m.tabs[m.activeTab].messageInput.SetValue("")
 	}
 
 	// check which tab the user is on
