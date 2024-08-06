@@ -1,3 +1,5 @@
+github.com/KononK/resize v0.0.0-20200801203131-21c514740ed6 h1:d0vrynsjC4pt17tdtKQhUiJy1YTh42sKn1V/MKcZjVA=
+github.com/KononK/resize v0.0.0-20200801203131-21c514740ed6/go.mod h1:Ua4BTHG071aADTv7wWBDDDwhq+F9uKaqJkPIlYyMQ64=
 github.com/alecthomas/chroma/v2 v2.14.0 h1:R3+wzpnUArGcQz7fCETQBzO5n9IMNi13iIs46aU4V9E=
 github.com/alecthomas/chroma/v2 v2.14.0/go.mod h1:QolEbTfmUHIMVpBqxeDnNBj2uoeI4EbYP4i6n68SG4I=
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFIImctFaOjnTIavg87rW78vTPkQqLI8=

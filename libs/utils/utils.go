@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 
+	"github.com/KononK/resize"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
 	"github.com/mattn/go-sixel"
@@ -75,7 +76,7 @@ func UrlParser(s string) string {
 	return result
 }
 
-func SixelEncode(url string) string {
+func SixelEncode(url string, width uint) string {
 	// download the image
 	resp, err := http.Get(url)
 	if err != nil {
@@ -91,9 +92,12 @@ func SixelEncode(url string) string {
 		return ""
 	}
 
+	// resize image
+	m := resize.Resize(width, 0, img, resize.NearestNeighbor)
+
 	// encode the image as sixel and print to stdout
 	var buf bytes.Buffer
-	sixel.NewEncoder(os.Stdout).Encode(img)
+	sixel.NewEncoder(os.Stdout).Encode(m)
 	result := buf.String()
 
 	return result

@@ -81,7 +81,7 @@ func main() {
 		}
 	}()
 
-	fmt.Println(utils.SixelEncode("https://emoji.slack-edge.com/T0266FRGM/blob_thumbs_up/1ef9fba2c56e12aa.png"))
+	fmt.Println(utils.SixelEncode("https://emoji.slack-edge.com/T0266FRGM/blob_thumbs_up/1ef9fba2c56e12aa.png", 36))
 
 	<-done
 	log.Info("Stopping SSH server")
