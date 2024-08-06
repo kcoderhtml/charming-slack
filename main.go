@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"errors" // Add this line to import the fmt package
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -23,6 +24,7 @@ import (
 	"charming-slack/libs/bubbleViews"
 	"charming-slack/libs/database"
 	"charming-slack/libs/httpHandlers"
+	"charming-slack/libs/utils"
 )
 
 const (
@@ -78,6 +80,8 @@ func main() {
 			done <- nil
 		}
 	}()
+
+	fmt.Println(utils.SixelEncode("https://emoji.slack-edge.com/T0266FRGM/blob_thumbs_up/1ef9fba2c56e12aa.png"))
 
 	<-done
 	log.Info("Stopping SSH server")

@@ -1,11 +1,16 @@
 package utils
 
 import (
+	"bytes"
 	"charming-slack/libs/database"
+	"image"
+	"net/http"
+	"os"
 	"regexp"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
+	"github.com/mattn/go-sixel"
 	"github.com/slack-go/slack"
 )
 
@@ -66,6 +71,30 @@ func UrlParser(s string) string {
 
 		return "[" + submatch[4] + "]" + "(" + submatch[1] + ")"
 	})
+
+	return result
+}
+
+func SixelEncode(url string) string {
+	// download the image
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Error("erroring getting image", "err", err)
+		return ""
+	}
+	defer resp.Body.Close()
+
+	// decode the image
+	img, _, err := image.Decode(resp.Body)
+	if err != nil {
+		log.Error("erroring decoding image", "err", err)
+		return ""
+	}
+
+	// encode the image as sixel and print to stdout
+	var buf bytes.Buffer
+	sixel.NewEncoder(os.Stdout).Encode(img)
+	result := buf.String()
 
 	return result
 }
