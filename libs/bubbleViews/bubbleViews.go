@@ -68,6 +68,7 @@ type tab struct {
 	searchMessages []slack.SearchMessage
 	state          string
 	messagePager   viewport.Model
+	messageInput   textinput.Model
 }
 
 type Model struct {
@@ -87,7 +88,6 @@ type Model struct {
 	privateChannels    []slack.Channel
 	dms                []slack.Channel
 	searchInput        textinput.Model
-	messageInput       textinput.Model
 	width              int
 	height             int
 	activeTab          int
@@ -220,14 +220,13 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			user:               s.User(),
 			publicKey:          s.PublicKey(),
 			page:               page,
-			tabs:               []tab{{"Public Channels", publicChannelsView, []slack.Message{}, []slack.SearchMessage{}, "select", p}, {"Private Channels", privateChannelsView, []slack.Message{}, []slack.SearchMessage{}, "select", p}, {"DMs", directMessagesView, []slack.Message{}, []slack.SearchMessage{}, "select", p}, {"Search", searchView, []slack.Message{}, []slack.SearchMessage{}, "select", p}},
+			tabs:               []tab{{"Public Channels", publicChannelsView, []slack.Message{}, []slack.SearchMessage{}, "select", p, mi}, {"Private Channels", privateChannelsView, []slack.Message{}, []slack.SearchMessage{}, "select", p, mi}, {"DMs", directMessagesView, []slack.Message{}, []slack.SearchMessage{}, "select", p, mi}, {"Search", searchView, []slack.Message{}, []slack.SearchMessage{}, "select", p, mi}},
 			channelList:        l,
 			privateChannelList: privateChannelL,
 			dmList:             dmL,
 			activeTab:          0,
 			slackClient:        slack.New(database.DB.ApplicationData[s.User()].SlackToken),
 			searchInput:        ti,
-			messageInput:       mi,
 		}
 
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
@@ -410,7 +409,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// switch tab state to messages and run the get messages command
 					m.tabs[m.activeTab].state = "messages"
 					cmds = append(cmds, getMessages(m.slackClient, m.channels[m.channelList.Index()].ID, m.activeTab))
-					cmds = append(cmds, m.messageInput.Focus())
+					cmds = append(cmds, m.tabs[0].messageInput.Focus())
 				case 1:
 					// switch tab state to messages and run the get messages command
 					m.tabs[m.activeTab].state = "messages"
@@ -559,8 +558,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			messagePager, messageCommand := m.tabs[0].messagePager.Update(msg)
 			m.tabs[0].messagePager = messagePager
 			cmds = append(cmds, messageCommand)
-			messageInput, messageInputCommand := m.messageInput.Update(msg)
-			m.messageInput = messageInput
+			messageInput, messageInputCommand := m.tabs[0].messageInput.Update(msg)
+			m.tabs[0].messageInput = messageInput
 			cmds = append(cmds, messageInputCommand)
 		}
 	case 1:
@@ -816,7 +815,7 @@ func searchView(style lipgloss.Style, m Model) string {
 }
 
 func sendMessageView(m Model) string {
-	return m.messageInput.View()
+	return m.tabs[m.activeTab].messageInput.View()
 }
 
 func tabBorderWithBottom(left, middle, right string, noTop bool) lipgloss.Border {
