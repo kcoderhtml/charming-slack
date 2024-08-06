@@ -405,27 +405,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, getDms(m.slackClient))
 			case "slack":
 				// check what page we are on
-				switch m.activeTab {
-				case 0:
-					// switch tab state to messages and run the get messages command
-					m.tabs[m.activeTab].state = "messages"
-					cmds = append(cmds, getMessages(m.slackClient, m.channels[m.channelList.Index()].ID, m.activeTab))
-					m.tabs[m.activeTab].focused = 1
-					cmds = append(cmds, m.tabs[0].messageInput.Focus())
-				case 1:
-					// switch tab state to messages and run the get messages command
-					m.tabs[m.activeTab].state = "messages"
-					cmds = append(cmds, getMessages(m.slackClient, m.privateChannels[m.privateChannelList.Index()].ID, m.activeTab))
-					m.tabs[m.activeTab].focused = 1
-					cmds = append(cmds, m.tabs[0].messageInput.Focus())
-				case 2:
-					// switch tab state to messages and run the get messages command
-					m.tabs[m.activeTab].state = "messages"
-					cmds = append(cmds, getMessages(m.slackClient, m.dms[m.dmList.Index()].ID, m.activeTab))
-				case 3:
+				if m.activeTab == 3 {
 					m.tabs[m.activeTab].state = "view"
 					cmds = append(cmds, m.searchInput.Cursor.SetMode(cursor.CursorHide))
 					cmds = append(cmds, searchMessages(m.slackClient, m.searchInput.Value()))
+				} else {
+					switch m.tabs[m.activeTab].state {
+					case "select":
+						// switch tab state to messages and run the get messages command
+						m.tabs[m.activeTab].state = "messages"
+						cmds = append(cmds, getMessages(m.slackClient, m.privateChannels[m.privateChannelList.Index()].ID, m.activeTab))
+						m.tabs[m.activeTab].focused = 1
+						cmds = append(cmds, m.tabs[m.activeTab].messageInput.Focus())
+					case "messages":
+						// send the message
+					}
 				}
 			}
 		case key.Matches(msg, m.keys.ShiftEnter):
@@ -605,9 +599,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.dmList = imList
 			cmds = append(cmds, imCmd)
 		case "messages":
-			messagePager, messageCommand := m.tabs[2].messagePager.Update(msg)
-			m.tabs[2].messagePager = messagePager
-			cmds = append(cmds, messageCommand)
+			switch m.tabs[m.activeTab].focused {
+			case 0:
+				messagePager, messageCommand := m.tabs[2].messagePager.Update(msg)
+				m.tabs[2].messagePager = messagePager
+				cmds = append(cmds, messageCommand)
+			case 1:
+				messageInput, messageInputCommand := m.tabs[2].messageInput.Update(msg)
+				m.tabs[2].messageInput = messageInput
+				cmds = append(cmds, messageInputCommand)
+			}
 		}
 	case 3:
 		switch m.tabs[3].state {
@@ -820,7 +821,7 @@ func directMessagesView(style lipgloss.Style, m Model) string {
 
 		return style.Render(m.dmList.View())
 	case "messages":
-		return m.tabs[m.activeTab].messagePager.View()
+		return m.tabs[m.activeTab].messagePager.View() + "\n" + sendMessageView(m)
 	}
 
 	return ""
