@@ -14,11 +14,13 @@ import (
 var DB = Database{
 	ApplicationData: map[string]UserData{},
 	SlackMap:        map[string]SlackUserMap{},
+	EmojiMap:        map[string]EmojiMap{},
 }
 
 var (
 	SlackMapMutex        = sync.RWMutex{}
 	ApplicationDataMutex = sync.RWMutex{}
+	EmojiMutex           = sync.RWMutex{}
 )
 
 type UserData struct {
@@ -33,9 +35,14 @@ type SlackUserMap struct {
 	DisplayName string
 }
 
+type EmojiMap struct {
+	url string
+}
+
 type Database struct {
 	ApplicationData map[string]UserData
 	SlackMap        map[string]SlackUserMap
+	EmojiMap        map[string]EmojiMap
 }
 
 func SetUserData(user string, slackToken string, refreshToken string, realName string) {
@@ -63,6 +70,21 @@ func AddSlackUser(userid string, realName string, displayName string) {
 		DisplayName: displayName,
 	}
 	SlackMapMutex.Unlock()
+}
+
+func AddEmoji(name string, url string) {
+	EmojiMutex.Lock()
+	DB.EmojiMap[name] = EmojiMap{
+		url: url,
+	}
+	EmojiMutex.Unlock()
+}
+
+func QueryEmoji(name string) EmojiMap {
+	EmojiMutex.Lock()
+	emoji := DB.EmojiMap[name]
+	SlackMapMutex.Unlock()
+	return emoji
 }
 
 func GetUserOrCreate(userid string, slackClient slack.Client) SlackUserMap {
