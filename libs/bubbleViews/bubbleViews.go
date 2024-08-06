@@ -449,7 +449,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
-		case key.Matches(msg, m.keys.ShiftEnter):
+		case key.Matches(msg, m.keys.Back):
 			if m.page == "slack" {
 				cmds = append(cmds, goBack())
 			}

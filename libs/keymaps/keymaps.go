@@ -3,24 +3,24 @@ package keymaps
 import "github.com/charmbracelet/bubbles/key"
 
 type KeyMap struct {
-	Tab        key.Binding
-	ShiftTab   key.Binding
-	Enter      key.Binding
-	ShiftEnter key.Binding
-	Help       key.Binding
-	Quit       key.Binding
+	Tab      key.Binding
+	ShiftTab key.Binding
+	Enter    key.Binding
+	Back     key.Binding
+	Help     key.Binding
+	Quit     key.Binding
 }
 
 // ShortHelp returns keybindings to be shown in the mini help view. It's part
 // of the key.Map interface.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.Quit, k.Enter, k.ShiftEnter}
+	return []key.Binding{k.Help, k.Quit, k.Enter, k.Back}
 }
 
 // FullHelp returns keybindings for the expanded help view. It's part of the
 // key.Map interface.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.Help}, {k.Quit}, {k.Enter}, {k.ShiftEnter}, {k.Tab}, {k.ShiftTab}}
+	return [][]key.Binding{{k.Help}, {k.Quit}, {k.Enter}, {k.Back}, {k.Tab}, {k.ShiftTab}}
 }
 
 var Keys = KeyMap{
@@ -36,9 +36,9 @@ var Keys = KeyMap{
 		key.WithKeys("enter"),
 		key.WithHelp("enter", "continue"),
 	),
-	ShiftEnter: key.NewBinding(
-		key.WithKeys("b"),
-		key.WithHelp("b", "go back"),
+	Back: key.NewBinding(
+		key.WithKeys("ctrl+b"),
+		key.WithHelp("ctrl+b", "go back"),
 	),
 	Tab: key.NewBinding(
 		key.WithKeys("tab"),
