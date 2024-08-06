@@ -14,7 +14,7 @@ import (
 var DB = Database{
 	ApplicationData: map[string]UserData{},
 	SlackMap:        map[string]SlackUserMap{},
-	EmojiMap:        map[string]EmojiMap{},
+	EmojiMap:        map[string]string{},
 }
 
 var (
@@ -35,14 +35,10 @@ type SlackUserMap struct {
 	DisplayName string
 }
 
-type EmojiMap struct {
-	url string
-}
-
 type Database struct {
 	ApplicationData map[string]UserData
 	SlackMap        map[string]SlackUserMap
-	EmojiMap        map[string]EmojiMap
+	EmojiMap        map[string]string
 }
 
 func SetUserData(user string, slackToken string, refreshToken string, realName string) {
@@ -74,13 +70,11 @@ func AddSlackUser(userid string, realName string, displayName string) {
 
 func AddEmoji(name string, url string) {
 	EmojiMutex.Lock()
-	DB.EmojiMap[name] = EmojiMap{
-		url: url,
-	}
+	DB.EmojiMap[name] = url
 	EmojiMutex.Unlock()
 }
 
-func QueryEmoji(name string) EmojiMap {
+func QueryEmoji(name string) string {
 	EmojiMutex.Lock()
 	emoji := DB.EmojiMap[name]
 	SlackMapMutex.Unlock()
