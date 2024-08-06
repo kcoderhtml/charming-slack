@@ -423,26 +423,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					cmds = append(cmds, m.searchInput.Cursor.SetMode(cursor.CursorHide))
 					cmds = append(cmds, searchMessages(m.slackClient, m.searchInput.Value()))
 				} else {
+					channel := ""
+
+					switch m.activeTab {
+					case 0:
+						channel = m.channels[m.channelList.Index()].ID
+					case 1:
+						channel = m.privateChannels[m.privateChannelList.Index()].ID
+					case 2:
+						channel = m.dms[m.dmList.Index()].ID
+					}
+
 					switch m.tabs[m.activeTab].state {
 					case "select":
 						// switch tab state to messages and run the get messages command
 						m.tabs[m.activeTab].state = "messages"
-						cmds = append(cmds, getMessages(m.slackClient, m.privateChannels[m.privateChannelList.Index()].ID, m.activeTab))
+						cmds = append(cmds, getMessages(m.slackClient, channel, m.activeTab))
 						m.tabs[m.activeTab].focused = 1
 						cmds = append(cmds, m.tabs[m.activeTab].messageInput.Focus())
 					case "messages":
 						// send the message
 						message := m.tabs[m.activeTab].messageInput.Value()
-						channel := ""
-
-						switch m.activeTab {
-						case 0:
-							channel = m.channels[m.channelList.Index()].ID
-						case 1:
-							channel = m.privateChannels[m.privateChannelList.Index()].ID
-						case 2:
-							channel = m.dms[m.dmList.Index()].ID
-						}
 
 						log.Info("sending a message", "channel", channel)
 						cmds = append(cmds, sendMessage(channel, message, *m.slackClient))
