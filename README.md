@@ -48,6 +48,7 @@ oauth_config:
       - users:read
       - users.profile:read
       - search:read
+      - emoji:read
 settings:
   org_deploy_enabled: false
   socket_mode_enabled: false
