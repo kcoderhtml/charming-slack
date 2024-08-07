@@ -237,7 +237,7 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
 	}
-	return bubbletea.MiddlewareWithProgramHandler(teaHandler, termenv.ANSI256)
+	return bubbletea.MiddlewareWithProgramHandler(teaHandler, termenv.TrueColor)
 }
 
 type (
