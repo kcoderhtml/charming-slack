@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"charming-slack/libs/database"
 	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"net/http"
 	"regexp"
 
