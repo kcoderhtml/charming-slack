@@ -180,7 +180,7 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 		}
 
 		channels := []list.Item{
-			item("plz wait while i'm 		loading..."),
+			item("plz wait while i'm loading..."),
 		}
 		l := list.New(channels, itemDelegate{}, 24, 14)
 		l.Title = "Public Channels"
