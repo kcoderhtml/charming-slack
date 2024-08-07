@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
@@ -32,6 +33,10 @@ const (
 )
 
 func main() {
+	bannerStyle := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Foreground(lipgloss.Color("#7154d8"))
+	sixel := utils.SixelEncode("https://emoji.slack-edge.com/T0266FRGM/blob_thumbs_up/1ef9fba2c56e12aa.png", 0)
+	fmt.Println("\n\n" + bannerStyle.Copy().UnsetBorderBottom().Render("  Charming Slack  ") + "\n    " + sixel + "\n" + bannerStyle.Copy().UnsetBorderTop().Render("  A cool program  ") + "\n\n")
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Error("Error loading .env file", "error", err)
@@ -80,8 +85,6 @@ func main() {
 			done <- nil
 		}
 	}()
-
-	fmt.Println(utils.SixelEncode("https://emoji.slack-edge.com/T0266FRGM/blob_thumbs_up/1ef9fba2c56e12aa.png", 36))
 
 	<-done
 	log.Info("Stopping SSH server")
