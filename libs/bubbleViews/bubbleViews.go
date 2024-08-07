@@ -46,16 +46,16 @@ var style = lipgloss.NewStyle().
 var highlightedStyle = lipgloss.NewStyle().
 	Bold(true).Foreground(lipgloss.Color("#866bef"))
 
-var highlightedStyleBot = highlightedStyle.Copy().
+var highlightedStyleBot = highlightedStyle.
 	Foreground(lipgloss.Color("#b45fd8"))
 
 var mutedStyle = lipgloss.NewStyle().
 	Italic(true).Foreground(lipgloss.Color("#7f71b7"))
 
-var lessMutedStyle = mutedStyle.Copy().
+var lessMutedStyle = mutedStyle.
 	Foreground(lipgloss.Color("#92909b"))
 
-var evenLessMutedStyle = mutedStyle.Copy().
+var evenLessMutedStyle = mutedStyle.
 	Foreground(lipgloss.Color("#bcbfd3"))
 
 var messageStyle = lipgloss.NewStyle().
@@ -663,7 +663,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	fittedStyle := style.Copy().
+	fittedStyle := style.
 		Width(m.width - 2).
 		Height(m.height - 3)
 
@@ -702,9 +702,9 @@ func SlackView(fittedStyle lipgloss.Style, m Model) string {
 		var style lipgloss.Style
 		isFirst, isLast, isActive := i == 0, i == len(m.tabs)-1, i == m.activeTab
 		if isActive {
-			style = activeTabStyle.Copy()
+			style = activeTabStyle
 		} else {
-			style = inactiveTabStyle.Copy()
+			style = inactiveTabStyle
 		}
 		border, _, _, _, _ := style.GetBorder()
 
@@ -762,7 +762,7 @@ func SlackView(fittedStyle lipgloss.Style, m Model) string {
 }
 
 func (m Model) AuthView(fittedStyle lipgloss.Style) string {
-	content := fittedStyle.Copy().
+	content := fittedStyle.
 		Align(lipgloss.Center, lipgloss.Center).
 		Render("Welcome " + m.user +
 			"\n" +
@@ -799,7 +799,7 @@ func (m Model) SlackOnboardingView(fittedStyle lipgloss.Style) string {
 		return paddingStyle.Render(content)
 	}
 
-	return fittedStyle.Copy().
+	return fittedStyle.
 		Align(lipgloss.Center, lipgloss.Center).
 		Render(text)
 }
@@ -900,6 +900,6 @@ var (
 	docStyle         = lipgloss.NewStyle().Padding(0, 2, 1, 2)
 	highlightColor   = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}
 	inactiveTabStyle = lipgloss.NewStyle().Border(tabBorderWithBottom("┴", "─", "┴", false), true).BorderForeground(highlightColor).Padding(0, 1)
-	activeTabStyle   = inactiveTabStyle.Copy().Border(tabBorderWithBottom("┘", " ", "└", false), true)
+	activeTabStyle   = inactiveTabStyle.Border(tabBorderWithBottom("┘", " ", "└", false), true)
 	windowStyle      = lipgloss.NewStyle().BorderForeground(highlightColor).Padding(2, 0).Align(lipgloss.Center).Border(lipgloss.NormalBorder()).UnsetBorderTop()
 )
