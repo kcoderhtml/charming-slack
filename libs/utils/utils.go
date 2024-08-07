@@ -5,7 +5,6 @@ import (
 	"charming-slack/libs/database"
 	"image"
 	"net/http"
-	"os"
 	"regexp"
 
 	"github.com/KononK/resize"
@@ -76,6 +75,27 @@ func UrlParser(s string) string {
 	return result
 }
 
+func EmojiParser(s string) string {
+	// find all slack emojis as denoted by :text: or :text-text: or :text_text:
+	re := regexp.MustCompile(`:(\w+|\w+-\w+|\w+_\w+):`)
+	result := re.ReplaceAllStringFunc(s, func(match string) string {
+		// extract the emoji name from the match
+		emojiName := re.FindStringSubmatch(match)[1]
+
+		// get the emoji image url from slack
+		emojiUrl := database.QueryEmoji(emojiName)
+
+		// check if the url is zero and if it isn't than sixel encode
+		if emojiUrl == "" {
+			return ":" + emojiName + ":"
+		}
+
+		return SixelEncode(emojiUrl, 24)
+	})
+
+	return result
+}
+
 func SixelEncode(url string, width uint) string {
 	// download the image
 	resp, err := http.Get(url)
@@ -97,8 +117,26 @@ func SixelEncode(url string, width uint) string {
 
 	// encode the image as sixel and print to stdout
 	var buf bytes.Buffer
-	sixel.NewEncoder(os.Stdout).Encode(m)
+	sixel.NewEncoder(&buf).Encode(m)
 	result := buf.String()
 
 	return result
+}
+
+func GetEmojisFromSlack(slackClient slack.Client) {
+	// Set the initial cursor to an empty string
+	for {
+		// Call the Slack API to get the list of emojis
+		response, err := slackClient.GetEmoji()
+		if err != nil {
+			log.Error("error getting emoji list", "err", err)
+			return
+		}
+
+		// Iterate over the emojis in the response
+		for emojiName, emojiURL := range response {
+			// Insert the emoji into the database
+			database.AddEmoji(emojiName, emojiURL)
+		}
+	}
 }

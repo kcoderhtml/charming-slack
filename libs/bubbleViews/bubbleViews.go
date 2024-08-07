@@ -230,6 +230,11 @@ func FirstLineDefenseMiddleware() wish.Middleware {
 			searchInput:        ti,
 		}
 
+		if database.EmojiCount() == 0 {
+			utils.GetEmojisFromSlack(*m.slackClient)
+			log.Info("loaded emojis", "count", database.EmojiCount())
+		}
+
 		return newProg(m, append(bubbletea.MakeOptions(s), tea.WithAltScreen())...)
 	}
 	return bubbletea.MiddlewareWithProgramHandler(teaHandler, termenv.ANSI256)
@@ -526,6 +531,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			messageString += glamString
 
 			messageString = utils.UserIdParser(messageString, highlightedStyle, highlightedStyleBot, *m.slackClient)
+
+			messageString = utils.EmojiParser(messageString)
 
 			b.WriteString(messageStyle.Width(m.width-12).Render(messageString) + "\n\n")
 		}

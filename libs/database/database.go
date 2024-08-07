@@ -77,8 +77,15 @@ func AddEmoji(name string, url string) {
 func QueryEmoji(name string) string {
 	EmojiMutex.Lock()
 	emoji := DB.EmojiMap[name]
-	SlackMapMutex.Unlock()
+	EmojiMutex.Unlock()
 	return emoji
+}
+
+func EmojiCount() int {
+	EmojiMutex.Lock()
+	count := len(DB.EmojiMap)
+	EmojiMutex.Unlock()
+	return count
 }
 
 func GetUserOrCreate(userid string, slackClient slack.Client) SlackUserMap {
